@@ -28,15 +28,13 @@ class VideoEditorScreen extends StatefulWidget {
 
 class _VideoEditorScreenState extends State<VideoEditorScreen> {
   VideoPlayerController? _controller;
-  Color _selectedColor = Colors.green;
-  double _strokeWidth = 7.0;
+  Color _selectedColor = Colors.green; // Default color set to green
+  double _strokeWidth = 7.0; // Default line weight set to bold
   ShapeType _selectedShape = ShapeType.line;
   List<Shape> _shapes = [];
   List<Shape> _undoStack = [];
   Shape? _currentShape;
-  Shape? _selectedShapeToMove;
-  Offset? _initialPosition;
-  double _volume = 0.1;
+  double _volume = 0.1; // Set default volume to 30%
   double? _previousVolume;
 
   @override
@@ -51,10 +49,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       _controller = VideoPlayerController.file(File(result.files.single.path!))
         ..initialize().then((_) {
           setState(() {});
-          _controller!.setVolume(_volume);
+          _controller!.setVolume(_volume); // Set initial volume to 30%
           _controller!.play();
           _controller!.addListener(() {
-            setState(() {});
+            setState(() {}); // Update the UI on each video frame
           });
         });
     }
@@ -178,12 +176,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     }
   }
 
-  bool _isPointInsideShape(Shape shape, Offset point) {
-    if (shape.points.isEmpty) return false;
-    final rect = Rect.fromPoints(shape.points.first, shape.points.last);
-    return rect.contains(point);
-  }
-
   @override
   void dispose() {
     _controller?.dispose();
@@ -194,7 +186,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Video Editor'),
+        title: Text('Swimlab Video'),
         actions: [
           IconButton(
             icon: Icon(Icons.add),
@@ -286,31 +278,35 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       if (_controller != null && _controller!.value.isInitialized)
                         VideoPlayer(_controller!),
                       GestureDetector(
-                        onTapDown: (details) {
-                          final selectedShape = _shapes.lastWhere(
-                            (shape) => _isPointInsideShape(shape, details.localPosition),
-                            orElse: () => null,
-                          );
+                        onPanStart: (details) {
                           setState(() {
-                            _selectedShapeToMove = selectedShape;
-                            _initialPosition = details.localPosition;
+                            _currentShape = Shape(
+                              points: [details.localPosition],
+                              color: _selectedColor,
+                              strokeWidth: _strokeWidth,
+                              shapeType: _selectedShape,
+                            );
                           });
                         },
                         onPanUpdate: (details) {
-                          if (_selectedShapeToMove != null) {
-                            setState(() {
-                              final delta = details.localPosition - _initialPosition!;
-                              for (int i = 0; i < _selectedShapeToMove!.points.length; i++) {
-                                _selectedShapeToMove!.points[i] += delta;
+                          setState(() {
+                            if (_selectedShape == ShapeType.angle) {
+                              if (_currentShape != null &&
+                                  _currentShape!.points.length < 3) {
+                                _currentShape!.points.add(details.localPosition);
                               }
-                              _initialPosition = details.localPosition;
-                            });
-                          }
+                            } else {
+                              _currentShape?.points.add(details.localPosition);
+                            }
+                          });
                         },
                         onPanEnd: (details) {
                           setState(() {
-                            _selectedShapeToMove = null;
-                            _initialPosition = null;
+                            if (_currentShape != null) {
+                              _shapes.add(_currentShape!);
+                              _currentShape = null;
+                              _undoStack.clear();
+                            }
                           });
                         },
                         child: CustomPaint(
@@ -412,15 +408,27 @@ class ProgressBarPainter extends CustomPainter {
     final backgroundPaint = Paint()..color = Colors.grey.shade400;
     final progressPaint = Paint()..color = Colors.red;
 
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
+    // Draw the background of the progress bar
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      backgroundPaint,
+    );
+
+    // Draw the progress indicator
     if (duration.inMilliseconds > 0) {
-      final double progressWidth = (progress.inMilliseconds / duration.inMilliseconds) * size.width;
-      canvas.drawRect(Rect.fromLTWH(0, 0, progressWidth, size.height), progressPaint);
+      final double progressWidth =
+          (progress.inMilliseconds / duration.inMilliseconds) * size.width;
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, progressWidth, size.height),
+        progressPaint,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
 }
 
 class Shape {
@@ -517,8 +525,11 @@ class DrawingPainter extends CustomPainter {
 
   void _drawAngle(Canvas canvas, List<Offset> points, Paint paint) {
     if (points.length == 3) {
+      // Draw two lines
       canvas.drawLine(points[0], points[1], paint);
       canvas.drawLine(points[1], points[2], paint);
+
+      // Calculate and display the angle
       if (calculateAngle != null) {
         final angle = calculateAngle!(points[0], points[1], points[2]);
         final angleText = "${angle.toStringAsFixed(1)}°";
@@ -537,5 +548,7 @@ class DrawingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
 }
