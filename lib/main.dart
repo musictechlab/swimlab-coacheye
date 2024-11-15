@@ -72,7 +72,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   void _togglePlayPause() {
     if (_controller != null && _controller!.value.isInitialized) {
       setState(() {
-        _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
+        _controller!.value.isPlaying
+            ? _controller!.pause()
+            : _controller!.play();
       });
     }
   }
@@ -81,7 +83,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     if (_controller != null && _controller!.value.isInitialized) {
       final currentPosition = _controller!.value.position;
       final rewindPosition = currentPosition - Duration(seconds: 5);
-      _controller!.seekTo(rewindPosition > Duration.zero ? rewindPosition : Duration.zero);
+      _controller!.seekTo(
+          rewindPosition > Duration.zero ? rewindPosition : Duration.zero);
     }
   }
 
@@ -186,7 +189,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Swimlab Video'),
+        title: Text('Swimlab Video Coach Eye'),
         actions: [
           IconButton(
             icon: Icon(Icons.add),
@@ -228,54 +231,18 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             ],
             icon: Icon(Icons.line_weight),
           ),
-          IconButton(
-            icon: Icon(Icons.undo),
-            onPressed: _undo,
-          ),
-          IconButton(
-            icon: Icon(Icons.redo),
-            onPressed: _redo,
-          ),
-          PopupMenuButton<ShapeType>(
-            onSelected: _selectShape,
-            itemBuilder: (context) => [
-              PopupMenuItem(value: ShapeType.line, child: Text("Line")),
-              PopupMenuItem(value: ShapeType.rectangle, child: Text("Rectangle")),
-              PopupMenuItem(value: ShapeType.circle, child: Text("Circle")),
-              PopupMenuItem(value: ShapeType.triangle, child: Text("Triangle")),
-              PopupMenuItem(value: ShapeType.curve, child: Text("Curve")),
-              PopupMenuItem(value: ShapeType.angle, child: Text("Angle")),
-            ],
-            icon: Icon(Icons.shape_line),
-          ),
         ],
       ),
-      body: Shortcuts(
-        shortcuts: <LogicalKeySet, Intent>{
-          LogicalKeySet(LogicalKeyboardKey.space): PlayPauseIntent(),
-          LogicalKeySet(LogicalKeyboardKey.arrowLeft): RewindIntent(),
-          LogicalKeySet(LogicalKeyboardKey.arrowRight): ForwardIntent(),
-        },
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            PlayPauseIntent: CallbackAction<PlayPauseIntent>(
-              onInvoke: (intent) => _togglePlayPause(),
-            ),
-            RewindIntent: CallbackAction<RewindIntent>(
-              onInvoke: (intent) => _rewind(),
-            ),
-            ForwardIntent: CallbackAction<ForwardIntent>(
-              onInvoke: (intent) => _forward(),
-            ),
-          },
-          child: Focus(
-            autofocus: true,
+      body: Row(
+        children: [
+          Expanded(
             child: Column(
               children: [
                 Expanded(
                   child: Stack(
                     children: [
-                      if (_controller != null && _controller!.value.isInitialized)
+                      if (_controller != null &&
+                          _controller!.value.isInitialized)
                         VideoPlayer(_controller!),
                       GestureDetector(
                         onPanStart: (details) {
@@ -293,7 +260,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             if (_selectedShape == ShapeType.angle) {
                               if (_currentShape != null &&
                                   _currentShape!.points.length < 3) {
-                                _currentShape!.points.add(details.localPosition);
+                                _currentShape!.points
+                                    .add(details.localPosition);
                               }
                             } else {
                               _currentShape?.points.add(details.localPosition);
@@ -310,7 +278,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           });
                         },
                         child: CustomPaint(
-                          painter: DrawingPainter(_shapes, _currentShape, _calculateAngle),
+                          painter: DrawingPainter(
+                              _shapes, _currentShape, _calculateAngle),
                           child: Container(),
                         ),
                       ),
@@ -319,10 +288,12 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 ),
                 GestureDetector(
                   onTapDown: (details) {
-                    _seekToPosition(details.localPosition.dx, MediaQuery.of(context).size.width);
+                    _seekToPosition(details.localPosition.dx,
+                        MediaQuery.of(context).size.width);
                   },
                   onPanUpdate: (details) {
-                    _seekToPosition(details.localPosition.dx, MediaQuery.of(context).size.width);
+                    _seekToPosition(details.localPosition.dx,
+                        MediaQuery.of(context).size.width);
                   },
                   child: CustomPaint(
                     painter: ProgressBarPainter(
@@ -339,7 +310,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     IconButton(
-                      icon: Icon(_volume == 0.0 ? Icons.volume_off : Icons.volume_up),
+                      icon: Icon(
+                          _volume == 0.0 ? Icons.volume_off : Icons.volume_up),
                       onPressed: _toggleMute,
                     ),
                     Expanded(
@@ -352,49 +324,135 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     ),
                   ],
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.replay_10),
-                      onPressed: () {
-                        _controller!.seekTo(_controller!.value.position - Duration(seconds: 10));
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(
-                          _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow),
-                      onPressed: _togglePlayPause,
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.forward_10),
-                      onPressed: () {
-                        _controller!.seekTo(_controller!.value.position + Duration(seconds: 10));
-                      },
-                    ),
-                    DropdownButton<double>(
-                      value: _controller!.value.playbackSpeed,
-                      items: [
-                        DropdownMenuItem(value: 0.5, child: Text("0.5x")),
-                        DropdownMenuItem(value: 1.0, child: Text("1x")),
-                        DropdownMenuItem(value: 1.5, child: Text("1.5x")),
-                        DropdownMenuItem(value: 2.0, child: Text("2x")),
-                      ],
-                      onChanged: _setPlaybackSpeed,
-                    ),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 32.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.skip_previous),
+                        onPressed: () {
+                          if (_controller != null &&
+                              _controller!.value.isInitialized) {
+                            _controller!.seekTo(Duration.zero);
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.replay_10),
+                        onPressed: () {
+                          if (_controller != null &&
+                              _controller!.value.isInitialized) {
+                            _controller!.seekTo(_controller!.value.position -
+                                Duration(seconds: 2));
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                            _controller != null && _controller!.value.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow),
+                        onPressed: _togglePlayPause,
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.forward_10),
+                        onPressed: () {
+                          if (_controller != null &&
+                              _controller!.value.isInitialized) {
+                            _controller!.seekTo(_controller!.value.position +
+                                Duration(seconds: 2));
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.skip_next),
+                        onPressed: () {
+                          if (_controller != null &&
+                              _controller!.value.isInitialized) {
+                            _controller!.seekTo(_controller!.value.duration);
+                          }
+                        },
+                      ),
+                      DropdownButton<double>(
+                        value: _controller != null
+                            ? _controller!.value.playbackSpeed
+                            : 1.0,
+                        items: [
+                          DropdownMenuItem(value: 0.5, child: Text("0.5x")),
+                          DropdownMenuItem(value: 1.0, child: Text("1x")),
+                          DropdownMenuItem(value: 1.5, child: Text("1.5x")),
+                          DropdownMenuItem(value: 2.0, child: Text("2x")),
+                        ],
+                        onChanged: _setPlaybackSpeed,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ),
+          // Right sidebar with tools
+          Container(
+            width: 80,
+            // color: Colors.grey[200],
+            color: Colors.white.withOpacity(1), // Set transparency here
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.linear_scale),
+                  onPressed: () => _selectShape(ShapeType.line),
+                  tooltip: 'Line',
+                ),
+                IconButton(
+                  icon: Icon(Icons.crop_square),
+                  onPressed: () => _selectShape(ShapeType.rectangle),
+                  tooltip: 'Rectangle',
+                ),
+                IconButton(
+                  icon: Icon(Icons.circle),
+                  onPressed: () => _selectShape(ShapeType.circle),
+                  tooltip: 'Circle',
+                ),
+                IconButton(
+                  icon: Icon(Icons.change_history),
+                  onPressed: () => _selectShape(ShapeType.triangle),
+                  tooltip: 'Triangle',
+                ),
+                IconButton(
+                  icon: Icon(Icons.brush),
+                  onPressed: () => _selectShape(ShapeType.curve),
+                  tooltip: 'Curve',
+                ),
+                // IconButton(
+                //   icon: Icon(Icons.architecture),
+                //   onPressed: () => _selectShape(ShapeType.angle),
+                //   tooltip: 'Angle',
+                // ),
+                IconButton(
+                  icon: Icon(Icons.undo),
+                  onPressed: _undo,
+                  tooltip: 'Undo',
+                ),
+                IconButton(
+                  icon: Icon(Icons.redo),
+                  onPressed: _redo,
+                  tooltip: 'Redo',
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class PlayPauseIntent extends Intent {}
+
 class RewindIntent extends Intent {}
+
 class ForwardIntent extends Intent {}
 
 class ProgressBarPainter extends CustomPainter {
@@ -408,13 +466,11 @@ class ProgressBarPainter extends CustomPainter {
     final backgroundPaint = Paint()..color = Colors.grey.shade400;
     final progressPaint = Paint()..color = Colors.red;
 
-    // Draw the background of the progress bar
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       backgroundPaint,
     );
 
-    // Draw the progress indicator
     if (duration.inMilliseconds > 0) {
       final double progressWidth =
           (progress.inMilliseconds / duration.inMilliseconds) * size.width;
@@ -525,11 +581,9 @@ class DrawingPainter extends CustomPainter {
 
   void _drawAngle(Canvas canvas, List<Offset> points, Paint paint) {
     if (points.length == 3) {
-      // Draw two lines
       canvas.drawLine(points[0], points[1], paint);
       canvas.drawLine(points[1], points[2], paint);
 
-      // Calculate and display the angle
       if (calculateAngle != null) {
         final angle = calculateAngle!(points[0], points[1], points[2]);
         final angleText = "${angle.toStringAsFixed(1)}°";
