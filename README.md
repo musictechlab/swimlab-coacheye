@@ -3,6 +3,12 @@
 
 Swimlab Video Coach Eye is a Flutter Proof Of Concept Demo application designed to assist swimming coaches in analyzing and annotating videos. It provides tools to draw shapes, calculate angles (in progress), and control video playback for enhanced coaching and review sessions.
 
+## Demo Video 🎥
+Check out the app in action in this demo video:
+
+[![Swimlab Video Coach Eye - Demo](https://img.youtube.com/vi/t3q07FzpTeI/0.jpg)](https://www.youtube.com/watch?v=t3q07FzpTeI)
+
+
 ## Features
 
 - **Video Playback:**
