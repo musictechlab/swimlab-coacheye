@@ -50,7 +50,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         ..initialize().then((_) {
           setState(() {});
           _controller!.setVolume(_volume); // Set initial volume to 30%
-          _controller!.play();
+          //_controller!.play();
           _controller!.addListener(() {
             setState(() {}); // Update the UI on each video frame
           });
@@ -224,7 +224,27 @@ Widget build(BuildContext context) {
         )
       ],
     ),
-    body: Row(
+    body: _controller == null || !_controller!.value.isInitialized
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo Widget
+                Image.asset(
+                  'assets/logo.png', // Add your logo file to assets and update path
+                  width: 300 ,
+                  height: 300,
+                ),
+                SizedBox(height: 10),
+                // "Open Video" Button
+                ElevatedButton(
+                  onPressed: _pickVideo,
+                  child: Text('Open Video'),
+                ),
+              ],
+            ),
+          )
+        : Row(
       children: [
         Expanded(
           child: Column(
