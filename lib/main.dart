@@ -5,6 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 
 void main() {
   runApp(MyApp());
@@ -14,12 +18,15 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color.fromARGB(255, 71, 74, 77), // Set global background color
+      ),
       home: VideoEditorScreen(),
     );
   }
 }
 
-enum ShapeType { line, rectangle, circle, triangle, curve, angle }
+enum ShapeType { line, arrow, rectangle, circle, triangle, curve, angle }
 
 class VideoEditorScreen extends StatefulWidget {
   @override
@@ -28,14 +35,15 @@ class VideoEditorScreen extends StatefulWidget {
 
 class _VideoEditorScreenState extends State<VideoEditorScreen> {
   VideoPlayerController? _controller;
-  Color _selectedColor = Colors.green; // Default color set to green
-  double _strokeWidth = 7.0; // Default line weight set to bold
+  Color _selectedColor = Colors.greenAccent;
+  double _strokeWidth = 10.0;
   ShapeType _selectedShape = ShapeType.line;
   List<Shape> _shapes = [];
   List<Shape> _undoStack = [];
   Shape? _currentShape;
-  double _volume = 0.1; // Set default volume to 30%
+  double _volume = 0.1;
   double? _previousVolume;
+  bool _isVolumeSliderVisible = false; // To toggle the volume slider visibility
 
   @override
   void initState() {
@@ -185,218 +193,198 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     super.dispose();
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: Text('Swimlab Video Coach Eye'),
-      actions: [
-        IconButton(
-          icon: Icon(Icons.add),
-          onPressed: _pickVideo,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor:
+            Color.fromARGB(0, 255,255,255), // Makes the AppBar background transparent
+        title: Text(
+          'Total Immersion Polska - Total Immersion Kraków - Swimlab Coach Eye',
+          style: TextStyle(
+              color: const Color.fromARGB(255, 255, 255,
+                  255)), // Ensure text is visible on transparency
         ),
-        IconButton(
-          icon: Icon(Icons.refresh),
-          onPressed: _resetAppState,
-        ),
-        IconButton(
-          icon: Icon(Icons.color_lens),
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: Text('Pick a color'),
-                  content: BlockPicker(
-                    pickerColor: _selectedColor,
-                    onColorChanged: _changeColor,
-                  ),
-                  actions: [
-                    TextButton(
-                      child: Text('Done'),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        )
-      ],
-    ),
-    body: _controller == null || !_controller!.value.isInitialized
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo Widget
-                Image.asset(
-                  'assets/logo.png', // Add your logo file to assets and update path
-                  width: 300 ,
-                  height: 300,
-                ),
-                SizedBox(height: 10),
-                // "Open Video" Button
-                ElevatedButton(
-                  onPressed: _pickVideo,
-                  child: Text('Open Video'),
-                ),
-              ],
-            ),
-          )
-        : Row(
-      children: [
-        Expanded(
+        elevation: 0, // Removes the shadow under the AppBar
+        centerTitle: true, // Centers the AppBar title
+        actions: [],
+      ),
+      body: _controller == null || !_controller!.value.isInitialized
+          ? Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    if (_controller != null && _controller!.value.isInitialized)
-                      Center(
-                        child: AspectRatio(
-                          aspectRatio: _controller!.value.aspectRatio,
-                          child: VideoPlayer(_controller!),
-                        ),
-                      ),
-                    GestureDetector(
-                      onPanStart: (details) {
-                        setState(() {
-                          _currentShape = Shape(
-                            points: [details.localPosition],
-                            color: _selectedColor,
-                            strokeWidth: _strokeWidth,
-                            shapeType: _selectedShape,
-                          );
-                        });
-                      },
-                      onPanUpdate: (details) {
-                        setState(() {
-                          if (_selectedShape == ShapeType.angle) {
-                            if (_currentShape != null &&
-                                _currentShape!.points.length < 3) {
-                              _currentShape!.points.add(details.localPosition);
-                            }
-                          } else {
-                            _currentShape?.points.add(details.localPosition);
-                          }
-                        });
-                      },
-                      onPanEnd: (details) {
-                        setState(() {
-                          if (_currentShape != null) {
-                            _shapes.add(_currentShape!);
-                            _currentShape = null;
-                            _undoStack.clear();
-                          }
-                        });
-                      },
-                      child: CustomPaint(
-                        painter: DrawingPainter(
-                            _shapes, _currentShape, _calculateAngle),
-                        child: Container(),
-                      ),
-                    ),
-                  ],
-                ),
+              // Logo Widget
+              Image.asset(
+                'assets/logo-white.png', // Add your logo file to assets and update path
+                width: 300,
+                height: 300,
               ),
-              if (_controller != null && _controller!.value.isInitialized)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTapDown: (details) {
-                          _seekToPosition(details.localPosition.dx,
-                              MediaQuery.of(context).size.width);
-                        },
-                        onPanUpdate: (details) {
-                          _seekToPosition(details.localPosition.dx,
-                              MediaQuery.of(context).size.width);
-                        },
-                        child: CustomPaint(
-                          painter: ProgressBarPainter(
-                            progress: _controller!.value.position,
-                            duration: _controller!.value.duration,
-                          ),
-                          child: Container(
-                            height: 20,
-                            alignment: Alignment.center,
-                          ),
+              SizedBox(height: 20),
+              // "Open Video" Button
+              ElevatedButton(
+                onPressed: _pickVideo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.yellow, // Set background color to yellow
+                  minimumSize: Size(200, 50), // Set width and height
+                ),
+                child: Text('Open Video'),
+              ),
+            ],
+          ),
+        )
+      :  Stack(
+              children: [
+                
+               // Ensure Video Player Fills the Screen
+              Positioned.fill(
+                  child: AspectRatio(
+                    aspectRatio: _controller!.value.aspectRatio,
+                    child: VideoPlayer(_controller!),
+                  ),
+                ),
+
+                // Drawing/Annotation Overlay
+                GestureDetector(
+                  onPanStart: (details) {
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [details.localPosition],
+                        color: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                        shapeType: _selectedShape,
+                      );
+                    });
+                  },
+                  onPanUpdate: (details) {
+                    setState(() {
+                      if (_selectedShape == ShapeType.angle) {
+                        if (_currentShape != null &&
+                            _currentShape!.points.length < 3) {
+                          _currentShape!.points.add(details.localPosition);
+                        }
+                      } else {
+                        _currentShape?.points.add(details.localPosition);
+                      }
+                    });
+                  },
+                  onPanEnd: (details) {
+                    setState(() {
+                      if (_currentShape != null) {
+                        _shapes.add(_currentShape!);
+                        _currentShape = null;
+                        _undoStack.clear();
+                      }
+                    });
+                  },
+                  child: CustomPaint(
+                    painter: DrawingPainter(
+                      _shapes,
+                      _currentShape,
+                      _calculateAngle,
+                    ),
+                    child: Container(),
+                  ),
+                ),
+
+
+// Left Sidebar with Playback and Volume Controls
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    width: 50,
+                    color: Colors.black.withOpacity(0.5), // Add transparency
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.skip_previous, color: Colors.white),
+                          onPressed: () {
+                            if (_controller != null &&
+                                _controller!.value.isInitialized) {
+                              _controller!.seekTo(Duration.zero);
+                            }
+                          },
+                          tooltip: 'Restart Video',
                         ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                                _volume == 0.0 ? Icons.volume_off : Icons.volume_up),
-                            onPressed: _toggleMute,
+                        IconButton(
+                          icon: Icon(Icons.replay_10, color: Colors.white),
+                          onPressed: () {
+                            if (_controller != null &&
+                                _controller!.value.isInitialized) {
+                              _controller!.seekTo(_controller!.value.position -
+                                  Duration(seconds: 10));
+                            }
+                          },
+                          tooltip: 'Rewind 10 seconds',
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _controller != null && _controller!.value.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                            color: Colors.white,
                           ),
-                          Expanded(
-                            child: Slider(
-                              value: _volume,
-                              min: 0.0,
-                              max: 1.0,
-                              onChanged: _setVolume,
-                            ),
+                          onPressed: _togglePlayPause,
+                          tooltip: 'Play/Pause',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.forward_10, color: Colors.white),
+                          onPressed: () {
+                            if (_controller != null &&
+                                _controller!.value.isInitialized) {
+                              _controller!.seekTo(_controller!.value.position +
+                                  Duration(seconds: 10));
+                            }
+                          },
+                          tooltip: 'Forward 10 seconds',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.skip_next, color: Colors.white),
+                          onPressed: () {
+                            if (_controller != null &&
+                                _controller!.value.isInitialized) {
+                              _controller!.seekTo(_controller!.value.duration);
+                            }
+                          },
+                          tooltip: 'Skip to End',
+                        ),
+
+                        // Mute/Unmute Icon
+                        IconButton(
+                          icon: Icon(
+                            _volume == 0.0
+                                ? Icons.volume_off
+                                : Icons.volume_up,
+                            color: Colors.white,
                           ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 32.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.skip_previous),
-                              onPressed: () {
-                                if (_controller != null &&
-                                    _controller!.value.isInitialized) {
-                                  _controller!.seekTo(Duration.zero);
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.replay_10),
-                              onPressed: () {
-                                if (_controller != null &&
-                                    _controller!.value.isInitialized) {
-                                  _controller!.seekTo(_controller!.value.position -
-                                      Duration(seconds: 2));
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                  _controller != null && _controller!.value.isPlaying
-                                      ? Icons.pause
-                                      : Icons.play_arrow),
-                              onPressed: _togglePlayPause,
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.forward_10),
-                              onPressed: () {
-                                if (_controller != null &&
-                                    _controller!.value.isInitialized) {
-                                  _controller!.seekTo(_controller!.value.position +
-                                      Duration(seconds: 2));
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.skip_next),
-                              onPressed: () {
-                                if (_controller != null &&
-                                    _controller!.value.isInitialized) {
-                                  _controller!.seekTo(_controller!.value.duration);
-                                }
-                              },
-                            ),
-                            DropdownButton<double>(
+                          onPressed: _toggleMute,
+                          tooltip: 'Mute/Unmute',
+                        ),
+
+                        // Volume Slider Toggle Icon
+                        IconButton(
+                          icon: Icon(Icons.speaker, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _isVolumeSliderVisible =
+                                  !_isVolumeSliderVisible; // Toggle slider visibility
+                            });
+                          },
+                          tooltip: 'Adjust Volume',
+                        ),
+                        
+                        // Playback Speed Controls
+                        Padding(
+                          padding: const EdgeInsets.only(left: 10.0),
+                          child: FittedBox(
+                            child: DropdownButton<double>(
                               value: _controller != null
-                                  ? _controller!.value.playbackSpeed
-                                  : 1.0,
+                                ? _controller!.value.playbackSpeed
+                                : 1.0,
+                              dropdownColor: Colors.black87,
+                              style: TextStyle(color: Colors.white),
                               items: [
                                 DropdownMenuItem(value: 0.5, child: Text("0.5x")),
                                 DropdownMenuItem(value: 1.0, child: Text("1x")),
@@ -405,66 +393,262 @@ Widget build(BuildContext context) {
                               ],
                               onChanged: _setPlaybackSpeed,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+
+
+                      ],
+                    ),
                   ),
                 ),
-            ],
-          ),
-        ),
-        // Right sidebar with tools
-        Container(
-          width: 80,
-          color: Colors.grey.withOpacity(0.5), // Set transparency here
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: Icon(Icons.linear_scale),
-                onPressed: () => _selectShape(ShapeType.line),
-                tooltip: 'Line',
-              ),
-              IconButton(
-                icon: Icon(Icons.crop_square),
-                onPressed: () => _selectShape(ShapeType.rectangle),
-                tooltip: 'Rectangle',
-              ),
-              IconButton(
-                icon: Icon(Icons.circle),
-                onPressed: () => _selectShape(ShapeType.circle),
-                tooltip: 'Circle',
-              ),
-              IconButton(
-                icon: Icon(Icons.change_history),
-                onPressed: () => _selectShape(ShapeType.triangle),
-                tooltip: 'Triangle',
-              ),
-              IconButton(
-                icon: Icon(Icons.brush),
-                onPressed: () => _selectShape(ShapeType.curve),
-                tooltip: 'Curve',
-              ),
-              IconButton(
-                icon: Icon(Icons.undo),
-                onPressed: _undo,
-                tooltip: 'Undo',
-              ),
-              IconButton(
-                icon: Icon(Icons.redo),
-                onPressed: _redo,
-                tooltip: 'Redo',
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
- }
+                // Horizontal Volume Slider (Appears Beside Sidebar)
+                if (_isVolumeSliderVisible)
+                  Positioned(
+                    top: 305, // Align with the speaker icon
+                    left: 50, // Place beside the sidebar
+                    child: Container(
+                      width: 300, // Adjust slider width
+                      height: 40,
+                      color: Colors.black.withOpacity(0.5), // Background for slider
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _volume,
+                              min: 0.0,
+                              max: 1.0,
+                              onChanged: _setVolume,
+                              activeColor: Colors.red,
+                              inactiveColor: Colors.grey,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _isVolumeSliderVisible = false; // Close slider
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+         
+                  
+
+                // Right Sidebar with Tools (Positioned on Top of Video)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 50,
+                    color: Colors.black.withOpacity(0.5), // Add transparency
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.folder_open_outlined, color: Colors.white),
+                          onPressed: _pickVideo,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _controller?.dispose();
+                              _controller = null;
+                            });
+                          },
+                          tooltip: 'Close Video',
+                        ),
+                        Divider(
+                          color: Colors.grey,
+                          thickness: 1,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.refresh, color: Colors.white),
+                          onPressed: _resetAppState,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.undo, color: Colors.white),
+                          onPressed: _undo,
+                          tooltip: 'Undo',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.redo, color: Colors.white),
+                          onPressed: _redo,
+                          tooltip: 'Redo',
+                        ),
+                        Divider(
+                          color: Colors.grey,
+                          thickness: 1,
+                        ),
+                        IconButton(
+                          icon:
+                              Icon(Icons.color_lens, color: Colors.yellow[500]),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: Text('Pick a color'),
+                                  content: BlockPicker(
+                                    pickerColor: _selectedColor,
+                                    onColorChanged: _changeColor,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      child: Text('Done'),
+                                      onPressed: () => Navigator.pop(context),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                          color: _selectedShape == ShapeType.line
+                            ? Colors.black.withOpacity(0.5)
+                            : Colors.transparent,
+                          shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                          icon: Icon(Icons.line_axis,
+                            color: Colors.green[500]),
+                          onPressed: () => _selectShape(ShapeType.line),
+                          tooltip: 'Line',
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                          color: _selectedShape == ShapeType.curve
+                            ? Colors.black.withOpacity(0.5)
+                            : Colors.transparent,
+                          shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/line_curve.svg', // Ensure you have the SVG file in your assets
+                            color: Colors.purple[300], // Set the color of the SVG icon
+                            width: 24,
+                            height: 24,
+                          ),
+                          onPressed: () => _selectShape(ShapeType.curve),
+                          tooltip: 'Curve',
+                          ),
+                        ),
+                          
+                        Container(
+                          decoration: BoxDecoration(
+                          color: _selectedShape == ShapeType.arrow
+                            ? Colors.black.withOpacity(0.5)
+                            : Colors.transparent,
+                          shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                          icon: Icon(Icons.arrow_back,
+                            color: Colors.white),
+                          onPressed: () => _selectShape(ShapeType.arrow),
+                          tooltip: 'Arrow',
+                          ),
+                        ),
+
+                        Container(
+                          decoration: BoxDecoration(
+                          color: _selectedShape == ShapeType.rectangle
+                            ? Colors.black.withOpacity(0.5)
+                            : Colors.transparent,
+                          shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                          icon: Icon(Icons.crop_square,
+                            color: Colors.red[200]),
+                          onPressed: () => _selectShape(ShapeType.rectangle),
+                          tooltip: 'Rectangle',
+                          ),
+                        ),
+                        
+                        Container(
+                          decoration: BoxDecoration(
+                          color: _selectedShape == ShapeType.circle
+                            ? Colors.black.withOpacity(0.5)
+                            : Colors.transparent,
+                          shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                          icon: Icon(Icons.circle_outlined, color: Colors.orange[500]),
+                          onPressed: () => _selectShape(ShapeType.circle),
+                          tooltip: 'Circle',
+                          ),
+                        ),
+
+                        Container(
+                          decoration: BoxDecoration(
+                          color: _selectedShape == ShapeType.triangle
+                            ? Colors.black.withOpacity(0.5)
+                            : Colors.transparent,
+                          shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                          icon: Icon(Icons.change_history,
+                            color: Colors.blue[500]),
+                          onPressed: () => _selectShape(ShapeType.triangle),
+                          tooltip: 'Triangle',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+            
+                // Bottom Toolbar for Playback Controls
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    color: Colors.black.withOpacity(0.5), // Add transparency
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTapDown: (details) {
+                            _seekToPosition(
+                              details.localPosition.dx,
+                              MediaQuery.of(context).size.width,
+                            );
+                          },
+                          onPanUpdate: (details) {
+                            _seekToPosition(
+                              details.localPosition.dx,
+                              MediaQuery.of(context).size.width,
+                            );
+                          },
+                          child: CustomPaint(
+                            painter: ProgressBarPainter(
+                              progress: _controller!.value.position,
+                              duration: _controller!.value.duration,
+                            ),
+                            child: Container(
+                              height: 100,
+                              alignment: Alignment.center,
+                            ),
+                          ),
+                        ),
+                        
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
 
 class PlayPauseIntent extends Intent {}
 
@@ -482,18 +666,39 @@ class ProgressBarPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final backgroundPaint = Paint()..color = Colors.grey.shade400;
     final progressPaint = Paint()..color = Colors.red;
+    final markerPaint = Paint()..color = Colors.white;
 
+    // Draw the background line
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
+      Rect.fromLTWH(0, size.height / 2 - 2, size.width, 8), // Centered background
       backgroundPaint,
     );
 
+    // Draw the progress line
     if (duration.inMilliseconds > 0) {
       final double progressWidth =
           (progress.inMilliseconds / duration.inMilliseconds) * size.width;
       canvas.drawRect(
-        Rect.fromLTWH(0, 0, progressWidth, size.height),
+        Rect.fromLTWH(0, size.height / 2 - 2, progressWidth, 8), // Centered progress
         progressPaint,
+      );
+    }
+
+    // Draw the markers with varying heights
+    const int markerCount = 70; // Number of markers
+    final waveFrequency = 50; // Frequency of the wave
+    final waveAmplitude = size.height * .8; // Amplitude of the wave
+
+    for (int i = 0; i <= markerCount; i++) {
+      final double dx = (i / markerCount) * size.width;
+      final double dy = size.height / 2 +
+          waveAmplitude * sin((i / markerCount) * waveFrequency * 0.3 * pi);
+      final double markerHeight = dy - size.height / 2;
+
+      canvas.drawLine(
+        Offset(dx, size.height / 2 - markerHeight / 2),
+        Offset(dx, size.height / 2 + markerHeight / 2),
+        markerPaint,
       );
     }
   }
@@ -548,6 +753,8 @@ class DrawingPainter extends CustomPainter {
       }
     } else if (shape.shapeType == ShapeType.rectangle) {
       _drawRectangle(canvas, shape.points, paint);
+    } else if (shape.shapeType == ShapeType.arrow) {
+      _drawArrow(canvas, shape.points, paint);
     } else if (shape.shapeType == ShapeType.circle) {
       _drawCircle(canvas, shape.points, paint);
     } else if (shape.shapeType == ShapeType.triangle) {
@@ -562,7 +769,66 @@ class DrawingPainter extends CustomPainter {
   void _drawRectangle(Canvas canvas, List<Offset> points, Paint paint) {
     if (points.length >= 2) {
       final rect = Rect.fromPoints(points.first, points.last);
+
+      // Draw outer border
+      final outerPaint = Paint()
+        ..color = Colors.black.withOpacity(1)
+        ..strokeWidth = paint.strokeWidth - 1
+        ..style = PaintingStyle.stroke;
+      canvas.drawRect(rect.inflate(1), outerPaint);
+
+      // Draw inner border
+      final innerPaint = Paint()
+        ..color = Colors.black.withOpacity(1)
+        ..strokeWidth = paint.strokeWidth - 1
+        ..style = PaintingStyle.stroke;
+      canvas.drawRect(rect.deflate(1), innerPaint);
+
+      // Draw the main rectangle
       canvas.drawRect(rect, paint);
+    }
+  }
+
+
+  void _drawArrow(Canvas canvas, List<Offset> points, Paint paint) {
+    if (points.length >= 2) {
+      final p1 = points.first;
+      final p2 = points.last;
+      canvas.drawLine(p1, p2, paint);
+
+      // Calculate the arrowhead points
+      const arrowHeadLength = 10.0;
+      const arrowHeadAngle = pi / 6;
+
+      final angle = atan2(p2.dy - p1.dy, p2.dx - p1.dx);
+      final path = Path()
+        ..moveTo(p2.dx, p2.dy)
+        ..lineTo(
+          p2.dx - arrowHeadLength * cos(angle - arrowHeadAngle),
+          p2.dy - arrowHeadLength * sin(angle - arrowHeadAngle),
+        )
+        ..lineTo(
+          p2.dx - arrowHeadLength * cos(angle + arrowHeadAngle),
+          p2.dy - arrowHeadLength * sin(angle + arrowHeadAngle),
+        )
+        ..close();
+
+      // Draw outer border
+      final outerPaint = Paint()
+        ..color = Colors.black.withOpacity(1)
+        ..strokeWidth = paint.strokeWidth
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(path, outerPaint);
+
+      // Draw inner border
+      final innerPaint = Paint()
+        ..color = Colors.black.withOpacity(1)
+        ..strokeWidth = paint.strokeWidth
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(path, innerPaint);
+
+      // Draw the main arrow
+      canvas.drawPath(path, paint..style = PaintingStyle.stroke);
     }
   }
 
@@ -570,6 +836,22 @@ class DrawingPainter extends CustomPainter {
     if (points.length >= 2) {
       final center = points.first;
       final radius = (points.first - points.last).distance;
+
+      // Draw outer border
+      final outerPaint = Paint()
+        ..color = Colors.black.withOpacity(1)
+        ..strokeWidth = paint.strokeWidth - 1
+        ..style = PaintingStyle.stroke;
+      canvas.drawCircle(center, radius + 1, outerPaint);
+
+      // Draw inner border
+      final innerPaint = Paint()
+        ..color = Colors.black.withOpacity(1)
+        ..strokeWidth = paint.strokeWidth - 1
+        ..style = PaintingStyle.stroke;
+      canvas.drawCircle(center, radius - 1, innerPaint);
+
+      // Draw the main circle
       canvas.drawCircle(center, radius, paint);
     }
   }
