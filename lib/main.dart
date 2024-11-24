@@ -200,7 +200,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         backgroundColor:
             Color.fromARGB(0, 255,255,255), // Makes the AppBar background transparent
         title: Text(
-          'Total Immersion Polska - Total Immersion Kraków - Swimlab Coach Eye',
+          'Swimlab Coache Eye',
           style: TextStyle(
               color: const Color.fromARGB(255, 255, 255,
                   255)), // Ensure text is visible on transparency
