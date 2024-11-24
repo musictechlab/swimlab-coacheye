@@ -15,6 +15,8 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -29,6 +31,8 @@ class MyApp extends StatelessWidget {
 enum ShapeType { line, arrow, rectangle, circle, triangle, curve, angle }
 
 class VideoEditorScreen extends StatefulWidget {
+  const VideoEditorScreen({super.key});
+
   @override
   _VideoEditorScreenState createState() => _VideoEditorScreenState();
 }
@@ -38,8 +42,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Color _selectedColor = Colors.greenAccent;
   double _strokeWidth = 10.0;
   ShapeType _selectedShape = ShapeType.line;
-  List<Shape> _shapes = [];
-  List<Shape> _undoStack = [];
+  final List<Shape> _shapes = [];
+  final List<Shape> _undoStack = [];
   Shape? _currentShape;
   double _volume = 0.1;
   double? _previousVolume;
@@ -200,7 +204,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         backgroundColor:
             Color.fromARGB(0, 255,255,255), // Makes the AppBar background transparent
         title: Text(
-          'Swimlab Coache Eye',
+          'Swimlab Coach\'s Eye',
           style: TextStyle(
               color: const Color.fromARGB(255, 255, 255,
                   255)), // Ensure text is visible on transparency
