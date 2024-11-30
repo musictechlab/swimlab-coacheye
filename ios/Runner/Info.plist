@@ -47,5 +47,7 @@
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>App needs access to documents folder.</string>
 </dict>
 </plist>
