@@ -25,7 +25,7 @@ class CoachEye extends StatelessWidget {
   }
 }
 
-enum ShapeType { line, arrow, rectangle, circle, triangle, curve, angle }
+enum ShapeType { line, arrow, rectangle, circle, triangle, curve, angle, protractor }
 
 class VideoEditorScreen extends StatefulWidget {
   const VideoEditorScreen({super.key});
@@ -48,6 +48,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   bool _isMovingShape = false;
   Shape? _movingShape;
   Offset? _lastPosition;
+  bool _isResizingProtractor = false;
 
   @override
   void initState() {
@@ -255,6 +256,19 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     // Check if we're clicking on an existing shape
                     for (var shape in _shapes) {
                       if (shape.containsPoint(position)) {
+                        if (shape.shapeType == ShapeType.protractor && 
+                            shape._isPointNearProtractorHandle(position)) {
+                          setState(() {
+                            _isResizingProtractor = true;
+                            _movingShape = shape;
+                            // Deselect other shapes
+                            for (var s in _shapes) {
+                              s.isSelected = false;
+                            }
+                            shape.isSelected = true;
+                          });
+                          return;
+                        }
                         setState(() {
                           _isMovingShape = true;
                           _movingShape = shape;
@@ -284,7 +298,12 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   },
                   onPanUpdate: (details) {
                     final position = details.localPosition;
-                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                    if (_isResizingProtractor && _movingShape != null) {
+                      setState(() {
+                        // Update the radius point (last point) while keeping the center (first point) fixed
+                        _movingShape!.points.last = position;
+                      });
+                    } else if (_isMovingShape && _movingShape != null && _lastPosition != null) {
                       setState(() {
                         final delta = position - _lastPosition!;
                         _movingShape!.move(delta);
@@ -303,19 +322,17 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     }
                   },
                   onPanEnd: (details) {
-                    if (_isMovingShape) {
-                      setState(() {
-                        _isMovingShape = false;
-                        _movingShape = null;
-                        _lastPosition = null;
-                      });
-                    } else if (_currentShape != null) {
-                      setState(() {
+                    setState(() {
+                      _isResizingProtractor = false;
+                      _isMovingShape = false;
+                      _movingShape = null;
+                      _lastPosition = null;
+                      if (_currentShape != null) {
                         _shapes.add(_currentShape!);
                         _currentShape = null;
                         _undoStack.clear();
-                      });
-                    }
+                      }
+                    });
                   },
                   child: CustomPaint(
                     painter: DrawingPainter(
@@ -640,6 +657,21 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           tooltip: 'Triangle',
                           ),
                         ),
+
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _selectedShape == ShapeType.protractor
+                              ? Colors.black.withOpacity(0.5)
+                              : Colors.transparent,
+                            shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.architecture, // Using architecture icon for protractor
+                              color: Colors.blue[200]),
+                            onPressed: () => _selectShape(ShapeType.protractor),
+                            tooltip: 'Protractor',
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -780,6 +812,8 @@ class Shape {
         return _isPointInTriangle(point);
       case ShapeType.curve:
         return _isPointNearCurve(point);
+      case ShapeType.protractor:
+        return _isPointInProtractor(point) || _isPointNearProtractorHandle(point);
       default:
         return false;
     }
@@ -845,6 +879,21 @@ class Shape {
     return false;
   }
 
+  bool _isPointInProtractor(Offset point) {
+    if (points.length < 2) return false;
+    final center = points.first;
+    final radius = (points.first - points.last).distance;
+    
+    // Check if point is within the protractor's circle area
+    return (point - center).distance <= radius;
+  }
+
+  bool _isPointNearProtractorHandle(Offset point) {
+    if (points.length < 2) return false;
+    final handlePoint = points.last;
+    return (point - handlePoint).distance <= 20.0;  // 20.0 is the touch threshold
+  }
+
   void move(Offset delta) {
     for (int i = 0; i < points.length; i++) {
       points[i] = points[i] + delta;
@@ -905,6 +954,8 @@ class DrawingPainter extends CustomPainter {
       _drawCurve(canvas, shape.points, paint);
     } else if (shape.shapeType == ShapeType.angle) {
       _drawAngle(canvas, shape.points, paint);
+    } else if (shape.shapeType == ShapeType.protractor) {
+      _drawProtractor(canvas, shape.points, paint);
     }
   }
 
@@ -1039,6 +1090,82 @@ class DrawingPainter extends CustomPainter {
           ..layout()
           ..paint(canvas, points[1]);
       }
+    }
+  }
+
+  void _drawProtractor(Canvas canvas, List<Offset> points, Paint paint) {
+    if (points.length >= 2) {
+      final center = points.first;
+      final radius = (points.first - points.last).distance;
+      
+      // Create a thinner paint for the protractor lines
+      final thinPaint = Paint()
+        ..color = paint.color
+        ..strokeWidth = 5.0  // Reduced from original strokeWidth
+        ..style = PaintingStyle.stroke;
+      
+      // Draw the main circle
+      canvas.drawCircle(center, radius, thinPaint);
+      
+      // Draw angle markers every 10 degrees
+      for (int angle = 0; angle < 360; angle += 10) {
+        final radian = angle * pi / 180;
+        final startPoint = Offset(
+          center.dx + radius * cos(radian),
+          center.dy + radius * sin(radian)
+        );
+        
+        // Longer lines for major angles (30°)
+        final lineLength = angle % 30 == 0 ? radius * 0.15 : radius * 0.1;
+        final endPoint = Offset(
+          center.dx + (radius - lineLength) * cos(radian),
+          center.dy + (radius - lineLength) * sin(radian)
+        );
+        
+        canvas.drawLine(startPoint, endPoint, thinPaint);
+        
+        // Draw angle numbers for every 30 degrees
+        if (angle % 30 == 0) {
+          final textPainter = TextPainter(
+            text: TextSpan(
+              text: '$angle°',
+              style: TextStyle(
+                color: paint.color,
+                fontSize: 12,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          );
+          textPainter.layout();
+          
+          final textPoint = Offset(
+            center.dx + (radius - lineLength - 20) * cos(radian) - textPainter.width / 2,
+            center.dy + (radius - lineLength - 20) * sin(radian) - textPainter.height / 2,
+          );
+          
+          textPainter.paint(canvas, textPoint);
+        }
+      }
+      
+      // Draw crosshairs at center with thin lines
+      canvas.drawLine(
+        Offset(center.dx - 10, center.dy),
+        Offset(center.dx + 10, center.dy),
+        thinPaint,
+      );
+      canvas.drawLine(
+        Offset(center.dx, center.dy - 10),
+        Offset(center.dx, center.dy + 10),
+        thinPaint,
+      );
+
+      // Draw resize handle
+      final handlePaint = Paint()
+        ..color = paint.color
+        ..strokeWidth = paint.strokeWidth
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(points.last, 8.0, handlePaint);
     }
   }
 
