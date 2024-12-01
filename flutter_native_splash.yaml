@@ -1,0 +1,8 @@
+flutter_native_splash:
+  color: "#474A4D"            # Background color (hex or name)
+  image: assets/splash.png    # Path to your splash screen image
+  android: true               # Enable splash screen for Android
+  ios: true                   # Enable splash screen for iOS
+  web: false                  # Optional: Enable for web (if needed)
+  android_gravity: center     # Optional: Position image on Android
+  ios_content_mode: center    # Optional: Position image on iOS
