@@ -8,11 +8,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 
 void main() {
-  runApp(MyApp());
+  runApp(CoachEye());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class CoachEye extends StatelessWidget {
+  const CoachEye({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +45,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   double _volume = 0.1;
   double? _previousVolume;
   bool _isVolumeSliderVisible = false; // To toggle the volume slider visibility
+  bool _isMovingShape = false;
+  Shape? _movingShape;
+  Offset? _lastPosition;
 
   @override
   void initState() {
@@ -248,9 +251,31 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 // Drawing/Annotation Overlay
                 GestureDetector(
                   onPanStart: (details) {
+                    final position = details.localPosition;
+                    // Check if we're clicking on an existing shape
+                    for (var shape in _shapes) {
+                      if (shape.containsPoint(position)) {
+                        setState(() {
+                          _isMovingShape = true;
+                          _movingShape = shape;
+                          _lastPosition = position;
+                          // Deselect other shapes
+                          for (var s in _shapes) {
+                            s.isSelected = false;
+                          }
+                          shape.isSelected = true;
+                        });
+                        return;
+                      }
+                    }
+                    
+                    // If not clicking on a shape, start drawing a new one
                     setState(() {
+                      for (var s in _shapes) {
+                        s.isSelected = false;
+                      }
                       _currentShape = Shape(
-                        points: [details.localPosition],
+                        points: [position],
                         color: _selectedColor,
                         strokeWidth: _strokeWidth,
                         shapeType: _selectedShape,
@@ -258,25 +283,39 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     });
                   },
                   onPanUpdate: (details) {
-                    setState(() {
-                      if (_selectedShape == ShapeType.angle) {
-                        if (_currentShape != null &&
-                            _currentShape!.points.length < 3) {
-                          _currentShape!.points.add(details.localPosition);
+                    final position = details.localPosition;
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
+                        _lastPosition = position;
+                      });
+                    } else if (_currentShape != null) {
+                      setState(() {
+                        if (_selectedShape == ShapeType.angle) {
+                          if (_currentShape!.points.length < 3) {
+                            _currentShape!.points.add(position);
+                          }
+                        } else {
+                          _currentShape?.points.add(position);
                         }
-                      } else {
-                        _currentShape?.points.add(details.localPosition);
-                      }
-                    });
+                      });
+                    }
                   },
                   onPanEnd: (details) {
-                    setState(() {
-                      if (_currentShape != null) {
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                    } else if (_currentShape != null) {
+                      setState(() {
                         _shapes.add(_currentShape!);
                         _currentShape = null;
                         _undoStack.clear();
-                      }
-                    });
+                      });
+                    }
                   },
                   child: CustomPaint(
                     painter: DrawingPainter(
@@ -716,13 +755,101 @@ class Shape {
   Color color;
   double strokeWidth;
   ShapeType shapeType;
+  bool isSelected;
+  Offset? dragOffset;
 
   Shape({
     required this.points,
     required this.color,
     required this.strokeWidth,
     required this.shapeType,
+    this.isSelected = false,
+    this.dragOffset,
   });
+
+  bool containsPoint(Offset point) {
+    switch (shapeType) {
+      case ShapeType.line:
+      case ShapeType.arrow:
+        return _isPointNearLine(point, points.first, points.last);
+      case ShapeType.rectangle:
+        return _isPointInRectangle(point);
+      case ShapeType.circle:
+        return _isPointInCircle(point);
+      case ShapeType.triangle:
+        return _isPointInTriangle(point);
+      case ShapeType.curve:
+        return _isPointNearCurve(point);
+      default:
+        return false;
+    }
+  }
+
+  bool _isPointNearLine(Offset point, Offset start, Offset end) {
+    const threshold = 20.0;
+    final length = (end - start).distance;
+    final d = ((point.dx - start.dx) * (end.dx - start.dx) +
+            (point.dy - start.dy) * (end.dy - start.dy)) /
+        (length * length);
+    
+    if (d < 0 || d > 1) return false;
+    
+    final projection = Offset(
+      start.dx + d * (end.dx - start.dx),
+      start.dy + d * (end.dy - start.dy),
+    );
+    return (point - projection).distance < threshold;
+  }
+
+  bool _isPointInRectangle(Offset point) {
+    final rect = Rect.fromPoints(points.first, points.last);
+    return rect.contains(point);
+  }
+
+  bool _isPointInCircle(Offset point) {
+    final center = points.first;
+    final radius = (points.first - points.last).distance;
+    return (point - center).distance <= radius;
+  }
+
+  bool _isPointInTriangle(Offset point) {
+    if (points.length < 2) return false;
+    final p1 = points[0];
+    final p2 = points.last;
+    final p3 = Offset(2 * p1.dx - p2.dx, p2.dy);
+    
+    return _pointInTriangle(point, p1, p2, p3);
+  }
+
+  bool _pointInTriangle(Offset p, Offset v1, Offset v2, Offset v3) {
+    double area = 0.5 * (-v2.dy * v3.dx + v1.dy * (-v2.dx + v3.dx) +
+        v1.dx * (v2.dy - v3.dy) + v2.dx * v3.dy);
+    double s = 1 / (2 * area) *
+        (v1.dy * v3.dx - v1.dx * v3.dy +
+            (v3.dy - v1.dy) * p.dx +
+            (v1.dx - v3.dx) * p.dy);
+    double t = 1 / (2 * area) *
+        (v1.dx * v2.dy - v1.dy * v2.dx +
+            (v1.dy - v2.dy) * p.dx +
+            (v2.dx - v1.dx) * p.dy);
+    return s >= 0 && t >= 0 && (1 - s - t) >= 0;
+  }
+
+  bool _isPointNearCurve(Offset point) {
+    const threshold = 20.0;
+    for (int i = 1; i < points.length; i++) {
+      if (_isPointNearLine(point, points[i - 1], points[i])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void move(Offset delta) {
+    for (int i = 0; i < points.length; i++) {
+      points[i] = points[i] + delta;
+    }
+  }
 }
 
 class DrawingPainter extends CustomPainter {
@@ -749,6 +876,19 @@ class DrawingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
+    // Draw selection indicator if shape is selected
+    if (shape.isSelected) {
+      final selectionPaint = Paint()
+        ..color = Colors.blue.withOpacity(0.3)
+        ..strokeWidth = paint.strokeWidth + 4
+        ..style = PaintingStyle.stroke;
+      _drawShapeWithPaint(canvas, shape, selectionPaint);
+    }
+
+    _drawShapeWithPaint(canvas, shape, paint);
+  }
+
+  void _drawShapeWithPaint(Canvas canvas, Shape shape, Paint paint) {
     if (shape.shapeType == ShapeType.line) {
       if (shape.points.length >= 2) {
         canvas.drawLine(shape.points.first, shape.points.last, paint);
