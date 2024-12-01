@@ -300,6 +300,24 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
+                          icon: Icon(Icons.folder_open_outlined, color: Colors.yellow),
+                          onPressed: _pickVideo,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.yellow),
+                          onPressed: () {
+                            setState(() {
+                              _controller?.dispose();
+                              _controller = null;
+                            });
+                          },
+                          tooltip: 'Close Video',
+                        ),
+                        Divider(
+                          color: Colors.grey,
+                          thickness: 1,
+                        ),
+                        IconButton(
                           icon: Icon(Icons.skip_previous, color: Colors.white),
                           onPressed: () {
                             if (_controller != null &&
@@ -363,7 +381,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           onPressed: _toggleMute,
                           tooltip: 'Mute/Unmute',
                         ),
-
+                        Divider(
+                          color: Colors.grey,
+                          thickness: 1,
+                        ),
                         // Volume Slider Toggle Icon
                         IconButton(
                           icon: Icon(Icons.speaker, color: Colors.white),
@@ -437,8 +458,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     ),
                   ),
          
-                  
-
                 // Right Sidebar with Tools (Positioned on Top of Video)
                 Positioned(
                   top: 10,
@@ -449,24 +468,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.folder_open_outlined, color: Colors.white),
-                          onPressed: _pickVideo,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: Colors.white),
-                          onPressed: () {
-                            setState(() {
-                              _controller?.dispose();
-                              _controller = null;
-                            });
-                          },
-                          tooltip: 'Close Video',
-                        ),
-                        Divider(
-                          color: Colors.grey,
-                          thickness: 1,
-                        ),
                         IconButton(
                           icon: Icon(Icons.refresh, color: Colors.white),
                           onPressed: _resetAppState,
