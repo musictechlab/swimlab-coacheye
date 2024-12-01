@@ -18,7 +18,7 @@ class CoachEye extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color.fromARGB(255, 71, 74, 77), // Set global background color
+        scaffoldBackgroundColor: const Color(0xFF4D565D), // Updated background color
       ),
       home: VideoEditorScreen(),
     );
@@ -51,6 +51,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   bool _isMaskMode = false;
   Shape? _maskShape;
   bool _isResizingMask = false;
+  bool _isStrokeWidthSliderVisible = false;
 
   @override
   void initState() {
@@ -81,6 +82,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       _selectedColor = Colors.green;
       _strokeWidth = 7.0;
       _selectedShape = ShapeType.line;
+      _isMaskMode = false;  // Disable mask mode
+      _maskShape = null;    // Clear any existing mask
     });
   }
 
@@ -233,7 +236,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             children: [
               // Logo Widget
               Image.asset(
-                'assets/logo-white.png', // Add your logo file to assets and update path
+                'assets/splash.png', // Add your logo file to assets and update path
                 width: 300,
                 height: 300,
               ),
@@ -265,7 +268,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 if (_isMaskMode)
                   Positioned.fill(
                     child: CustomPaint(
-                      painter: MaskPainter([if (_maskShape != null) _maskShape!]),
+                      painter: MaskPainter([if (_maskShape != null) _maskShape!], currentShape: _currentShape),
                       child: Container(),
                     ),
                   ),
@@ -621,7 +624,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.refresh, color: Colors.white),
+                          icon: Icon(Icons.restart_alt, color: Colors.white),
                           onPressed: _resetAppState,
                         ),
                         IconButton(
@@ -779,17 +782,64 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           ),
                           child: IconButton(
                             icon: Icon(
-                              Icons.masks_outlined,
+                              Icons.flashlight_on,
                               color: _isMaskMode ? Colors.yellow : Colors.white,
                             ),
                             onPressed: _toggleMaskMode,
                             tooltip: 'Toggle Mask Mode',
                           ),
                         ),
+                        IconButton(
+                          icon: Icon(Icons.line_weight, color: Colors.yellow[500]),
+                          onPressed: () {
+                            setState(() {
+                              _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
+                            });
+                          },
+                          tooltip: 'Adjust Stroke Width',
+                        ),
                       ],
                     ),
                   ),
                 ),
+
+                // Stroke Width Slider
+                if (_isStrokeWidthSliderVisible)
+                  Positioned(
+                    top: 100, // Position it below the color picker
+                    right: 50, // Place beside the right sidebar
+                    child: Container(
+                      width: 300,
+                      height: 40,
+                      color: Colors.black.withOpacity(0.5),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _strokeWidth,
+                              min: 1.0,
+                              max: 30.0,
+                              onChanged: _changeStrokeWidth,
+                              activeColor: _selectedColor,
+                              inactiveColor: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            '${_strokeWidth.toStringAsFixed(1)}',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _isStrokeWidthSliderVisible = false;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
             
                 // Bottom Toolbar for Playback Controls
@@ -935,8 +985,7 @@ class Shape {
     }
   }
 
-  bool _isPointNearLine(Offset point, Offset start, Offset end) {
-    const threshold = 20.0;
+  bool _isPointNearLine(Offset point, Offset start, Offset end, [double threshold = 20.0]) {
     final length = (end - start).distance;
     final d = ((point.dx - start.dx) * (end.dx - start.dx) +
             (point.dy - start.dy) * (end.dy - start.dy)) /
@@ -988,7 +1037,7 @@ class Shape {
   bool _isPointNearCurve(Offset point) {
     const threshold = 20.0;
     for (int i = 1; i < points.length; i++) {
-      if (_isPointNearLine(point, points[i - 1], points[i])) {
+      if (_isPointNearLine(point, points[i - 1], points[i], threshold)) {
         return true;
       }
     }
@@ -1279,18 +1328,15 @@ class DrawingPainter extends CustomPainter {
 
 class MaskPainter extends CustomPainter {
   final List<Shape> masks;
+  final Shape? currentShape;
 
-  MaskPainter(this.masks);
+  MaskPainter(this.masks, {this.currentShape});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Create a path for all masks
     final maskPath = Path();
-    
-    // First, add a path for the entire canvas
     maskPath.addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     
-    // Then cut out circles for each mask using fillType.evenOdd
     for (var mask in masks) {
       if (mask.points.length >= 2) {
         final center = mask.points.first;
@@ -1299,7 +1345,20 @@ class MaskPainter extends CustomPainter {
       }
     }
 
-    // Draw the semi-transparent overlay using evenOdd fill type
+    // Draw the green outline only for the shape being currently drawn
+    if (currentShape != null && currentShape!.points.length >= 2) {
+      final center = currentShape!.points.first;
+      final radius = (currentShape!.points.first - currentShape!.points.last).distance;
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+      );
+    }
+
     maskPath.fillType = PathFillType.evenOdd;
     canvas.drawPath(
       maskPath,

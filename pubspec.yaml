@@ -60,7 +60,7 @@ flutter_icons:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
-    - assets/logo-white.png
+    - assets/logo-2.png
     - assets/logo.png
     - assets/line_curve.svg
     - assets/splash.png
