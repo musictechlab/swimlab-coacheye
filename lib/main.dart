@@ -48,7 +48,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   bool _isMovingShape = false;
   Shape? _movingShape;
   Offset? _lastPosition;
-  bool _isResizingProtractor = false;
+  bool _isMaskMode = false;
+  Shape? _maskShape;
+  bool _isResizingMask = false;
 
   @override
   void initState() {
@@ -192,6 +194,16 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     }
   }
 
+  void _toggleMaskMode() {
+    setState(() {
+      _isMaskMode = !_isMaskMode;
+      // Reset current shape when exiting mask mode
+      if (!_isMaskMode) {
+        _currentShape = null;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _controller?.dispose();
@@ -249,26 +261,64 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   ),
                 ),
 
+                // Add Mask Layer
+                if (_isMaskMode)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: MaskPainter([if (_maskShape != null) _maskShape!]),
+                      child: Container(),
+                    ),
+                  ),
+
                 // Drawing/Annotation Overlay
                 GestureDetector(
                   onPanStart: (details) {
+                    if (_isMaskMode) {
+                      final position = details.localPosition;
+                      // If we already have a mask, check if we're clicking near its edge
+                      if (_maskShape != null) {
+                        final center = _maskShape!.points.first;
+                        final radius = (_maskShape!.points.first - _maskShape!.points.last).distance;
+                        final distanceFromCenter = (position - center).distance;
+                        
+                        // Check if we're near the edge (for resizing)
+                        if ((distanceFromCenter - radius).abs() < 20) {
+                          setState(() {
+                            _isResizingMask = true;
+                            _currentShape = _maskShape;
+                          });
+                          return;
+                        }
+                        
+                        // Check if we're inside the circle (for moving)
+                        if (distanceFromCenter < radius) {
+                          setState(() {
+                            _isMovingShape = true;
+                            _movingShape = _maskShape;
+                            _lastPosition = position;
+                          });
+                          return;
+                        }
+                      }
+                      
+                      // Create new mask only if we don't have one
+                      if (_maskShape == null) {
+                        setState(() {
+                          _currentShape = Shape(
+                            points: [position, position], // Initialize with same point
+                            color: Colors.transparent,
+                            strokeWidth: 1,
+                            shapeType: ShapeType.circle,
+                            isMask: true,
+                          );
+                        });
+                      }
+                      return;
+                    }
                     final position = details.localPosition;
                     // Check if we're clicking on an existing shape
                     for (var shape in _shapes) {
                       if (shape.containsPoint(position)) {
-                        if (shape.shapeType == ShapeType.protractor && 
-                            shape._isPointNearProtractorHandle(position)) {
-                          setState(() {
-                            _isResizingProtractor = true;
-                            _movingShape = shape;
-                            // Deselect other shapes
-                            for (var s in _shapes) {
-                              s.isSelected = false;
-                            }
-                            shape.isSelected = true;
-                          });
-                          return;
-                        }
                         setState(() {
                           _isMovingShape = true;
                           _movingShape = shape;
@@ -297,13 +347,33 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     });
                   },
                   onPanUpdate: (details) {
+                    if (_isMaskMode) {
+                      final position = details.localPosition;
+                      if (_isResizingMask && _currentShape != null) {
+                        setState(() {
+                          _currentShape!.points[1] = position; // Update radius
+                          _maskShape = _currentShape;
+                        });
+                        return;
+                      }
+                      if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                        setState(() {
+                          final delta = position - _lastPosition!;
+                          _movingShape!.move(delta);
+                          _lastPosition = position;
+                          _maskShape = _movingShape;
+                        });
+                        return;
+                      }
+                      if (_currentShape != null) {
+                        setState(() {
+                          _currentShape!.points[1] = position; // Update radius while creating
+                        });
+                      }
+                      return;
+                    }
                     final position = details.localPosition;
-                    if (_isResizingProtractor && _movingShape != null) {
-                      setState(() {
-                        // Update the radius point (last point) while keeping the center (first point) fixed
-                        _movingShape!.points.last = position;
-                      });
-                    } else if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
                       setState(() {
                         final delta = position - _lastPosition!;
                         _movingShape!.move(delta);
@@ -322,17 +392,43 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     }
                   },
                   onPanEnd: (details) {
-                    setState(() {
-                      _isResizingProtractor = false;
-                      _isMovingShape = false;
-                      _movingShape = null;
-                      _lastPosition = null;
+                    if (_isMaskMode) {
+                      if (_isResizingMask) {
+                        setState(() {
+                          _isResizingMask = false;
+                          _currentShape = null;
+                        });
+                        return;
+                      }
+                      if (_isMovingShape) {
+                        setState(() {
+                          _isMovingShape = false;
+                          _movingShape = null;
+                          _lastPosition = null;
+                        });
+                        return;
+                      }
                       if (_currentShape != null) {
+                        setState(() {
+                          _maskShape = _currentShape;
+                          _currentShape = null;
+                        });
+                      }
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                    } else if (_currentShape != null) {
+                      setState(() {
                         _shapes.add(_currentShape!);
                         _currentShape = null;
                         _undoStack.clear();
-                      }
-                    });
+                      });
+                    }
                   },
                   child: CustomPaint(
                     painter: DrawingPainter(
@@ -672,6 +768,24 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             tooltip: 'Protractor',
                           ),
                         ),
+
+                        // Add Mask Toggle button to the right toolbar
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _isMaskMode
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                            shape: BoxShape.rectangle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.masks_outlined,
+                              color: _isMaskMode ? Colors.yellow : Colors.white,
+                            ),
+                            onPressed: _toggleMaskMode,
+                            tooltip: 'Toggle Mask Mode',
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -789,6 +903,7 @@ class Shape {
   ShapeType shapeType;
   bool isSelected;
   Offset? dragOffset;
+  final bool isMask;
 
   Shape({
     required this.points,
@@ -797,6 +912,7 @@ class Shape {
     required this.shapeType,
     this.isSelected = false,
     this.dragOffset,
+    this.isMask = false,
   });
 
   bool containsPoint(Offset point) {
@@ -813,7 +929,7 @@ class Shape {
       case ShapeType.curve:
         return _isPointNearCurve(point);
       case ShapeType.protractor:
-        return _isPointInProtractor(point) || _isPointNearProtractorHandle(point);
+        return _isPointInProtractor(point);
       default:
         return false;
     }
@@ -886,12 +1002,6 @@ class Shape {
     
     // Check if point is within the protractor's circle area
     return (point - center).distance <= radius;
-  }
-
-  bool _isPointNearProtractorHandle(Offset point) {
-    if (points.length < 2) return false;
-    final handlePoint = points.last;
-    return (point - handlePoint).distance <= 20.0;  // 20.0 is the touch threshold
   }
 
   void move(Offset delta) {
@@ -1158,14 +1268,6 @@ class DrawingPainter extends CustomPainter {
         Offset(center.dx, center.dy + 10),
         thinPaint,
       );
-
-      // Draw resize handle
-      final handlePaint = Paint()
-        ..color = paint.color
-        ..strokeWidth = paint.strokeWidth
-        ..style = PaintingStyle.fill;
-      
-      canvas.drawCircle(points.last, 8.0, handlePaint);
     }
   }
 
@@ -1173,4 +1275,39 @@ class DrawingPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return true;
   }
+}
+
+class MaskPainter extends CustomPainter {
+  final List<Shape> masks;
+
+  MaskPainter(this.masks);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Create a path for all masks
+    final maskPath = Path();
+    
+    // First, add a path for the entire canvas
+    maskPath.addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    
+    // Then cut out circles for each mask using fillType.evenOdd
+    for (var mask in masks) {
+      if (mask.points.length >= 2) {
+        final center = mask.points.first;
+        final radius = (mask.points.first - mask.points.last).distance;
+        maskPath.addOval(Rect.fromCircle(center: center, radius: radius));
+      }
+    }
+
+    // Draw the semi-transparent overlay using evenOdd fill type
+    maskPath.fillType = PathFillType.evenOdd;
+    canvas.drawPath(
+      maskPath,
+      Paint()
+        ..color = Colors.black.withOpacity(0.75),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
