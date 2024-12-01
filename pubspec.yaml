@@ -34,8 +34,6 @@ dependencies:
   file_picker: ^5.0.0
   flutter_colorpicker: ^1.0.3
   flutter_svg: ^1.1.6 
-  path_provider: ^2.0.11
-  url_launcher: 
   
 dev_dependencies:
   flutter_test:
