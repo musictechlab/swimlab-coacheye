@@ -5,30 +5,55 @@ import 'package:video_player/video_player.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'pages/about_page.dart';
+import 'pages/swimbuddy_page.dart';
+import 'pages/settings_page.dart';
 
 
 void main() {
   runApp(CoachEye());
 }
 
-class CoachEye extends StatelessWidget {
+class CoachEye extends StatefulWidget {
   const CoachEye({super.key});
+
+  @override
+  State<CoachEye> createState() => _CoachEyeState();
+}
+
+class _CoachEyeState extends State<CoachEye> {
+  Color _backgroundColor = const Color(0xFF4D565D);
+
+  void _updateBackgroundColor(Color color) {
+    setState(() {
+      _backgroundColor = color;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFF4D565D), // Updated background color
+        scaffoldBackgroundColor: _backgroundColor,
       ),
-      home: VideoEditorScreen(),
+      home: VideoEditorScreen(
+        backgroundColor: _backgroundColor,
+        onBackgroundColorChanged: _updateBackgroundColor,
+      ),
     );
   }
 }
-
 enum ShapeType { line, arrow, rectangle, circle, triangle, curve, angle, protractor }
 
 class VideoEditorScreen extends StatefulWidget {
-  const VideoEditorScreen({super.key});
+  final Color backgroundColor;
+  final Function(Color) onBackgroundColorChanged;
+
+  const VideoEditorScreen({
+    super.key,
+    required this.backgroundColor,
+    required this.onBackgroundColorChanged,
+  });
 
   @override
   _VideoEditorScreenState createState() => _VideoEditorScreenState();
@@ -52,6 +77,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Shape? _maskShape;
   bool _isResizingMask = false;
   bool _isStrokeWidthSliderVisible = false;
+  int _selectedIndex = 0;
+  static const int HOME_INDEX = 0;
+  static const int OPEN_VIDEO_INDEX = 1;
+  bool _showAnimation = true; // Add this property
 
   @override
   void initState() {
@@ -213,6 +242,58 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     super.dispose();
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+      // Handle navigation or actions based on index
+      switch (index) {
+        case HOME_INDEX: // Home
+          setState(() {
+            _controller?.dispose();
+            _controller = null;
+            _showAnimation = true; // Reset animation flag when home is clicked
+          });
+          break;
+        case OPEN_VIDEO_INDEX: // Open Video
+          _pickVideo();
+          break;
+        case 2: // Settings
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SettingsPage(
+                currentBackgroundColor: widget.backgroundColor,
+                onBackgroundColorChanged: widget.onBackgroundColorChanged,
+              ),
+            ),
+          );
+          break;
+        case 3: // SwimBuddy
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => SwimBuddyPage()),
+          );
+          break;
+        case 4: // About
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AboutPage()),
+          );
+          break;
+      }
+    });
+  }
+
+  // Add this method to handle returning home
+  void _returnHome() {
+    setState(() {
+      _controller?.dispose();
+      _controller = null;
+      _showAnimation = true; // Show the welcome animation again
+      _resetAppState(); // Reset all drawing states
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,33 +308,77 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         ),
         elevation: 0, // Removes the shadow under the AppBar
         centerTitle: true, // Centers the AppBar title
+        leading: _controller != null
+            ? IconButton(
+                icon: Icon(Icons.home, color: Colors.white),
+                onPressed: _returnHome,
+                tooltip: 'Return Home',
+              )
+            : null,
         actions: [],
       ),
-      body: _controller == null || !_controller!.value.isInitialized
+      body: _controller == null || !_controller!.value.isInitialized || _showAnimation
           ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo Widget
-              Image.asset(
-                'assets/splash.png', // Add your logo file to assets and update path
-                width: 300,
-                height: 300,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Animated Text
+                  TweenAnimationBuilder(
+                    duration: Duration(seconds: 5),
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    builder: (context, double value, child) {
+                      return Opacity(
+                        opacity: value,
+                        child: Transform.translate(
+                          offset: Offset(0, 20 * (1 - value)),
+                          child: Text(
+                            'Swimming Video Analysis Made Easy',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  // Animated Logo
+                  GestureDetector(
+                    onTap: _pickVideo,  // Add this to make it clickable
+                    child: TweenAnimationBuilder(
+                      duration: Duration(seconds: 2),
+                      tween: Tween<double>(begin: 0.0, end: 1.0),
+                      builder: (context, double value, child) {
+                        return Transform.scale(
+                          scale: value,
+                          child: Opacity(
+                            opacity: value,
+                            child: MouseRegion(  // Add this to show it's clickable
+                              cursor: SystemMouseCursors.click,
+                              child: Image.asset(
+                                'assets/splash.png',
+                                width: 300,
+                                height: 300,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      onEnd: () {
+                        setState(() {
+                          _showAnimation = false;
+                        });
+                      },
+                    ),
+                  ),
+                  
+                  
+                ],
               ),
-              SizedBox(height: 20),
-              // "Open Video" Button
-              ElevatedButton(
-                onPressed: _pickVideo,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.yellow, // Set background color to yellow
-                  minimumSize: Size(200, 50), // Set width and height
-                ),
-                child: Text('Open Video'),
-              ),
-            ],
-          ),
-        )
-      :  Stack(
+            )
+          : Stack(
               children: [
                 
                // Ensure Video Player Fills the Screen
@@ -883,6 +1008,54 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 ),
               ],
             ),
+      bottomNavigationBar: _controller == null || !_controller!.value.isInitialized
+          ? Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: BottomNavigationBar(
+                items: <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Home',
+                    backgroundColor: Colors.black87,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.video_library),
+                    label: 'Open Video',
+                    backgroundColor: Colors.black87,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.settings),
+                    label: 'Settings',
+                    backgroundColor: Colors.black87,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.pool),
+                    label: 'SwimBuddy',
+                    backgroundColor: Colors.black87,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.info_outline),
+                    label: 'About',
+                    backgroundColor: Colors.black87,
+                  ),
+                ],
+                currentIndex: _selectedIndex,
+                selectedItemColor: Colors.yellow,
+                unselectedItemColor: Colors.grey,
+                onTap: _onItemTapped,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.black87,
+              ),
+            )
+          : null, // Hide bottom navigation when video is loaded
     );
   }
 }
@@ -1370,3 +1543,4 @@ class MaskPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
