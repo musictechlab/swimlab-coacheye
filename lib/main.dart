@@ -83,6 +83,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   static const int OPEN_VIDEO_INDEX = 1;
   bool _showAnimation = true; // Add this property
   bool _isFullScreen = false;
+  late Duration _skipStepTime = const Duration(seconds: 5);
+  static const Duration MIN_SKIP_TIME = Duration(seconds: 3);
+  static const Duration MAX_SKIP_TIME = Duration(seconds: 30);
 
   @override
   void initState() {
@@ -90,6 +93,22 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _toggleMute();
     });
+  }
+
+  void _updateSkipStepTime() {
+    if (_controller != null && _controller!.value.isInitialized) {
+      final videoDuration = _controller!.value.duration;
+      // Calculate skip time as approximately 2% of total duration
+      final calculatedSkipTime = Duration(milliseconds: (videoDuration.inMilliseconds * 0.02).round());
+      
+      setState(() {
+        _skipStepTime = calculatedSkipTime.compareTo(MIN_SKIP_TIME) < 0 
+            ? MIN_SKIP_TIME 
+            : calculatedSkipTime.compareTo(MAX_SKIP_TIME) > 0 
+                ? MAX_SKIP_TIME 
+                : calculatedSkipTime;
+      });
+    }
   }
 
   Future<void> _pickVideo() async {
@@ -112,6 +131,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             setState(() {}); // Update the UI on each video frame
           });
         });
+        
+        _updateSkipStepTime();
       } catch (e) {
         // Handle initialization error
         print('Error initializing video: $e');
@@ -166,7 +187,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   void _rewind() {
     if (_controller != null && _controller!.value.isInitialized) {
       final currentPosition = _controller!.value.position;
-      final rewindPosition = currentPosition - Duration(seconds: 5);
+      final rewindPosition = currentPosition - _skipStepTime;
       _controller!.seekTo(
           rewindPosition > Duration.zero ? rewindPosition : Duration.zero);
     }
@@ -175,7 +196,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   void _forward() {
     if (_controller != null && _controller!.value.isInitialized) {
       final currentPosition = _controller!.value.position;
-      final forwardPosition = currentPosition + Duration(seconds: 5);
+      final forwardPosition = currentPosition + _skipStepTime;
       _controller!.seekTo(forwardPosition < _controller!.value.duration
           ? forwardPosition
           : _controller!.value.duration);
@@ -773,13 +794,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                         IconButton(
                           icon: Icon(Icons.replay_10, color: Colors.white),
                           onPressed: () {
-                            if (_controller != null &&
-                                _controller!.value.isInitialized) {
-                              _controller!.seekTo(_controller!.value.position -
-                                  Duration(seconds: 10));
-                            }
+                            _rewind();
                           },
-                          tooltip: 'Rewind 10 seconds',
+                          tooltip: 'Rewind',
                         ),
                         IconButton(
                           icon: Icon(
@@ -792,15 +809,11 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           tooltip: 'Play/Pause',
                         ),
                         IconButton(
-                          icon: Icon(Icons.forward_10, color: Colors.white),
+                          icon: Icon(Icons.forward, color: Colors.white),
                           onPressed: () {
-                            if (_controller != null &&
-                                _controller!.value.isInitialized) {
-                              _controller!.seekTo(_controller!.value.position +
-                                  Duration(seconds: 10));
-                            }
+                            _forward();
                           },
-                          tooltip: 'Forward 10 seconds',
+                          tooltip: 'Forward',
                         ),
                         IconButton(
                           icon: Icon(Icons.skip_next, color: Colors.white),
@@ -1170,13 +1183,25 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           ),
                         ),
                         
-                        // Controls row
+                        // Modified Controls row
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Left side controls
+                            // Left side controls with added skip buttons
                             Row(
                               children: [
+                                IconButton(
+                                  icon: Icon(Icons.skip_previous, color: Colors.white),
+                                  onPressed: () => _controller!.seekTo(Duration.zero),
+                                  tooltip: 'Start',
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.arrow_back, color: Colors.white),
+                                  onPressed: () {
+                                    _rewind();
+                                  },
+                                  tooltip: 'Rewind',
+                                ),
                                 IconButton(
                                   icon: Icon(
                                     _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
@@ -1186,12 +1211,16 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   onPressed: _togglePlayPause,
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.skip_previous, color: Colors.white),
-                                  onPressed: () => _controller!.seekTo(Duration.zero),
+                                  icon: Icon(Icons.arrow_forward, color: Colors.white),
+                                  onPressed: () {
+                                    _forward();
+                                  },
+                                  tooltip: 'Forward',
                                 ),
                                 IconButton(
                                   icon: Icon(Icons.skip_next, color: Colors.white),
                                   onPressed: () => _controller!.seekTo(_controller!.value.duration),
+                                  tooltip: 'End',
                                 ),
                                 IconButton(
                                   icon: Icon(
@@ -1200,7 +1229,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                   onPressed: _toggleMute,
                                 ),
-                                // Volume slider
+                                // Volume slider remains the same
                                 SizedBox(
                                   width: 100,
                                   child: SliderTheme(
@@ -1223,10 +1252,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                               ],
                             ),
                             
-                            // Right side controls
+                            // Right side controls remain the same
                             Row(
                               children: [
-                                // Time display
                                 Text(
                                   '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
                                   style: TextStyle(color: Colors.white),
