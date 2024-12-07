@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:file_picker/file_picker.dart';
@@ -90,16 +91,48 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Future<void> _pickVideo() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.video);
     if (result != null && result.files.single.path != null) {
+      // Reset the app state first
       _resetAppState();
-      _controller = VideoPlayerController.file(File(result.files.single.path!))
-        ..initialize().then((_) {
-          setState(() {});
-          _controller!.setVolume(_volume); // Set initial volume to 30%
-          //_controller!.play();
+      
+      // Create and initialize the video controller
+      _controller = VideoPlayerController.file(File(result.files.single.path!));
+      
+      try {
+        await _controller!.initialize();
+        
+        // Update the state after successful initialization
+        setState(() {
+          _showAnimation = false; // Hide the welcome animation
+          _controller!.setVolume(_volume);
           _controller!.addListener(() {
             setState(() {}); // Update the UI on each video frame
           });
         });
+      } catch (e) {
+        // Handle initialization error
+        print('Error initializing video: $e');
+        setState(() {
+          _controller?.dispose();
+          _controller = null;
+        });
+        
+        // Show error dialog to user
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('Error'),
+              content: Text('Failed to load video. Please try another file.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -297,17 +330,24 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor:
-            Color.fromARGB(0, 255,255,255), // Makes the AppBar background transparent
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
           'Swimlab Coach\'s Eye',
           style: TextStyle(
-              color: const Color.fromARGB(255, 255, 255,
-                  255)), // Ensure text is visible on transparency
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                offset: Offset(0, 1),
+                blurRadius: 3.0,
+                color: Colors.black.withOpacity(0.5),
+              ),
+            ],
+          ),
         ),
-        elevation: 0, // Removes the shadow under the AppBar
-        centerTitle: true, // Centers the AppBar title
+        centerTitle: true,
         leading: _controller != null
             ? IconButton(
                 icon: Icon(Icons.home, color: Colors.white),
@@ -318,64 +358,132 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         actions: [],
       ),
       body: _controller == null || !_controller!.value.isInitialized || _showAnimation
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Animated Text
-                  TweenAnimationBuilder(
-                    duration: Duration(seconds: 5),
-                    tween: Tween<double>(begin: 0.0, end: 1.0),
-                    builder: (context, double value, child) {
-                      return Opacity(
-                        opacity: value,
-                        child: Transform.translate(
-                          offset: Offset(0, 20 * (1 - value)),
-                          child: Text(
-                            'Swimming Video Analysis Made Easy',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
+          ? Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/background.jpg'),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withOpacity(0.75),
+                    BlendMode.darken,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Animated Text
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.0),
+                        child: TweenAnimationBuilder(
+                          duration: Duration(seconds: 3),
+                          tween: Tween<double>(begin: 0.0, end: 1.0),
+                          builder: (context, double value, child) {
+                            return Opacity(
+                              opacity: value,
+                              child: Transform.translate(
+                                offset: Offset(0, 20 * (1 - value)),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    'Swimming Video Analysis Made Easy',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+                      // Animated Logo
+                      Tooltip(
+                        message: 'Click to open a video file',
+                        child: GestureDetector(
+                          onTap: _pickVideo,
+                          child: TweenAnimationBuilder(
+                            duration: Duration(seconds: 2),
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            builder: (context, double value, child) {
+                              final screenSize = MediaQuery.of(context).size;
+                              final logoSize = math.min(
+                                screenSize.width * 0.4,
+                                screenSize.height * 0.4
+                              );
+                              
+                              return Transform.scale(
+                                scale: value,
+                                child: Opacity(
+                                  opacity: value,
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.5),
+                                          width: 2,
+                                          strokeAlign: BorderSide.strokeAlignOutside,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: CustomPaint(
+                                        foregroundPainter: DottedBorderPainter(),
+                                        child: Padding(
+                                          padding: EdgeInsets.all(16),
+                                          child: Image.asset(
+                                            'assets/splash.png',
+                                            width: logoSize,
+                                            height: logoSize,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  SizedBox(height: 20),
-                  // Animated Logo
-                  GestureDetector(
-                    onTap: _pickVideo,  // Add this to make it clickable
-                    child: TweenAnimationBuilder(
-                      duration: Duration(seconds: 2),
-                      tween: Tween<double>(begin: 0.0, end: 1.0),
-                      builder: (context, double value, child) {
-                        return Transform.scale(
-                          scale: value,
-                          child: Opacity(
+                      ),
+                      // Add TI dedication text
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+                      TweenAnimationBuilder(
+                        duration: Duration(seconds: 2),
+                        tween: Tween<double>(begin: 0.0, end: 1.0),
+                        builder: (context, double value, child) {
+                          return Opacity(
                             opacity: value,
-                            child: MouseRegion(  // Add this to show it's clickable
-                              cursor: SystemMouseCursors.click,
-                              child: Image.asset(
-                                'assets/splash.png',
-                                width: 300,
-                                height: 300,
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(text: 'with love to '),
+                                  TextSpan(
+                                    text: 'Total Immersion',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  TextSpan(text: ' Swimming'),
+                                ],
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        );
-                      },
-                      onEnd: () {
-                        setState(() {
-                          _showAnimation = false;
-                        });
-                      },
-                    ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  
-                  
-                ],
+                ),
               ),
             )
           : Stack(
@@ -950,7 +1058,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             ),
                           ),
                           Text(
-                            '${_strokeWidth.toStringAsFixed(1)}',
+                            _strokeWidth.toStringAsFixed(1),
                             style: TextStyle(color: Colors.white),
                           ),
                           IconButton(
@@ -1542,5 +1650,51 @@ class MaskPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class DottedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.7)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final dashWidth = 6;
+    final dashSpace = 4;
+    final radius = 12.0;
+
+    // Create a path for rounded rectangle
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Radius.circular(radius),
+      ));
+
+    // Convert the path to a dotted line
+    final pathMetrics = path.computeMetrics();
+    for (final metric in pathMetrics) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        if (distance + dashWidth > metric.length) {
+          // Draw remaining space if less than dash width
+          canvas.drawPath(
+            metric.extractPath(distance, metric.length),
+            paint,
+          );
+          break;
+        }
+        
+        canvas.drawPath(
+          metric.extractPath(distance, distance + dashWidth),
+          paint,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
