@@ -82,6 +82,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   static const int HOME_INDEX = 0;
   static const int OPEN_VIDEO_INDEX = 1;
   bool _showAnimation = true; // Add this property
+  bool _isFullScreen = false;
 
   @override
   void initState() {
@@ -266,6 +267,12 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       if (!_isMaskMode) {
         _currentShape = null;
       }
+    });
+  }
+
+  void _toggleFullScreen() {
+    setState(() {
+      _isFullScreen = !_isFullScreen;
     });
   }
 
@@ -488,13 +495,15 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             )
           : Stack(
               children: [
-                
-               // Ensure Video Player Fills the Screen
-              Positioned.fill(
-                  child: AspectRatio(
-                    aspectRatio: _controller!.value.aspectRatio,
-                    child: VideoPlayer(_controller!),
-                  ),
+                Positioned.fill(
+                  child: _isFullScreen
+                      ? VideoPlayer(_controller!)
+                      : Center(
+                          child: AspectRatio(
+                            aspectRatio: _controller!.value.aspectRatio,
+                            child: VideoPlayer(_controller!),
+                          ),
+                        ),
                 ),
 
                 // Add Mask Layer
@@ -1030,6 +1039,14 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             });
                           },
                           tooltip: 'Adjust Stroke Width',
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                            color: Colors.white,
+                          ),
+                          onPressed: _toggleFullScreen,
+                          tooltip: _isFullScreen ? 'Exit Full Screen' : 'Enter Full Screen',
                         ),
                       ],
                     ),
