@@ -416,13 +416,33 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         leading: _controller != null
             ? Padding(
                 padding: EdgeInsets.only(left: 15.0),
-                child: IconButton(
-                  icon: Icon(Icons.home, color: Colors.white),
-                  onPressed: _returnHome,
-                  tooltip: 'Return Home',
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.home, color: Colors.white),
+                      onPressed: _returnHome,
+                      tooltip: 'Return Home',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.folder_open_outlined, color: Colors.yellow),
+                      onPressed: _pickVideo,
+                      tooltip: 'Open Video',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: Colors.yellow),
+                      onPressed: () {
+                        setState(() {
+                          _controller?.dispose();
+                          _controller = null;
+                        });
+                      },
+                      tooltip: 'Close Video',
+                    ),
+                  ],
                 ),
               )
             : null,
+        leadingWidth: 180, // Adjust this value to fit your icons
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -450,7 +470,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       ],
                     ),
                   ),
-                  if (_controller != null) // Only show when video is loaded
+                  if (_controller != null)
                     Text(
                       'Video Analysis Mode',
                       style: TextStyle(
@@ -469,7 +489,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
           ],
         ),
         centerTitle: true,
-        actions: [],
+        actions: [], // Remove the actions from here
       ),
       body: _controller == null || !_controller!.value.isInitialized || _showAnimation
           ? Container(
@@ -789,36 +809,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       _calculateAngle,
                     ),
                     child: Container(),
-                  ),
-                ),
-
-
-// Left Sidebar with Playback and Volume Controls
-                Positioned(
-                  top: 20,
-                  left: 10,
-                  child: Container(
-                    width: 50,
-                    color: Colors.black.withOpacity(0.5), // Add transparency
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.folder_open_outlined, color: Colors.yellow),
-                          onPressed: _pickVideo,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: Colors.yellow),
-                          onPressed: () {
-                            setState(() {
-                              _controller?.dispose();
-                              _controller = null;
-                            });
-                          },
-                          tooltip: 'Close Video',
-                        ),
-                      ],
-                    ),
                   ),
                 ),
 
