@@ -337,6 +337,13 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     });
   }
 
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$twoDigitMinutes:$twoDigitSeconds";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1137,35 +1144,111 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   left: 0,
                   right: 0,
                   child: Container(
-                    color: Colors.black.withOpacity(0.5), // Add transparency
+                    color: Colors.black.withOpacity(0.7),
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        GestureDetector(
-                          onTapDown: (details) {
-                            _seekToPosition(
-                              details.localPosition.dx,
-                              MediaQuery.of(context).size.width,
-                            );
-                          },
-                          onPanUpdate: (details) {
-                            _seekToPosition(
-                              details.localPosition.dx,
-                              MediaQuery.of(context).size.width,
-                            );
-                          },
-                          child: CustomPaint(
-                            painter: ProgressBarPainter(
-                              progress: _controller!.value.position,
-                              duration: _controller!.value.duration,
-                            ),
-                            child: Container(
-                              height: 100,
-                              alignment: Alignment.center,
-                            ),
+                        // Progress bar
+                        SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 2,
+                            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                            overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                            activeTrackColor: Colors.white,
+                            inactiveTrackColor: Colors.white.withOpacity(0.3),
+                            thumbColor: Colors.white,
+                            overlayColor: Colors.white.withOpacity(0.3),
+                          ),
+                          child: Slider(
+                            value: _controller!.value.position.inMilliseconds.toDouble(),
+                            min: 0,
+                            max: _controller!.value.duration.inMilliseconds.toDouble(),
+                            onChanged: (value) {
+                              _controller!.seekTo(Duration(milliseconds: value.toInt()));
+                            },
                           ),
                         ),
                         
+                        // Controls row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Left side controls
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                  onPressed: _togglePlayPause,
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.skip_previous, color: Colors.white),
+                                  onPressed: () => _controller!.seekTo(Duration.zero),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.skip_next, color: Colors.white),
+                                  onPressed: () => _controller!.seekTo(_controller!.value.duration),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    _volume == 0 ? Icons.volume_off : Icons.volume_up,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: _toggleMute,
+                                ),
+                                // Volume slider
+                                SizedBox(
+                                  width: 100,
+                                  child: SliderTheme(
+                                    data: SliderThemeData(
+                                      trackHeight: 2,
+                                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                      overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                      activeTrackColor: Colors.white,
+                                      inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                      thumbColor: Colors.white,
+                                    ),
+                                    child: Slider(
+                                      value: _volume,
+                                      min: 0,
+                                      max: 1,
+                                      onChanged: _setVolume,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            // Right side controls
+                            Row(
+                              children: [
+                                // Time display
+                                Text(
+                                  '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                SizedBox(width: 16),
+                                IconButton(
+                                  icon: Icon(Icons.settings, color: Colors.white),
+                                  onPressed: () {
+                                    // Add settings menu functionality
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: _toggleFullScreen,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
