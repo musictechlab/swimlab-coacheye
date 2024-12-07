@@ -1213,18 +1213,21 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     child: AnimatedOpacity(
                       opacity: _controller!.value.isPlaying ? 0.0 : 1.0,
                       duration: Duration(milliseconds: 200),
-                      child: GestureDetector(
-                        onTap: _togglePlayPause,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          padding: EdgeInsets.all(24),
-                          child: Icon(
-                            Icons.play_arrow,
-                            size: 64,
-                            color: Colors.white,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: _togglePlayPause,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            padding: EdgeInsets.all(24),
+                            child: Icon(
+                              Icons.play_arrow,
+                              size: 64,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
