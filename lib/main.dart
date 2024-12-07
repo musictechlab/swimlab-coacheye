@@ -69,7 +69,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   final List<Shape> _undoStack = [];
   Shape? _currentShape;
   double _volume = 0.1;
-  double? _previousVolume;
+  double? _previousVolume = 0.1;
   bool _isVolumeSliderVisible = false; // To toggle the volume slider visibility
   bool _isMovingShape = false;
   Shape? _movingShape;
@@ -87,6 +87,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _toggleMute();
+    });
   }
 
   Future<void> _pickVideo() async {
@@ -343,10 +346,13 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         elevation: 0,
         toolbarHeight: 70,
         leading: _controller != null
-            ? IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: _returnHome,
-                tooltip: 'Return Home',
+            ? Padding(
+                padding: EdgeInsets.only(left: 15.0),
+                child: IconButton(
+                  icon: Icon(Icons.home, color: Colors.white),
+                  onPressed: _returnHome,
+                  tooltip: 'Return Home',
+                ),
               )
             : null,
         title: Row(
@@ -721,7 +727,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
 
 // Left Sidebar with Playback and Volume Controls
                 Positioned(
-                  top: 10,
+                  top: 20,
                   left: 10,
                   child: Container(
                     width: 50,
@@ -890,7 +896,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
          
                 // Right Sidebar with Tools (Positioned on Top of Video)
                 Positioned(
-                  top: 10,
+                  top: 20,
                   right: 10,
                   child: Container(
                     width: 50,
