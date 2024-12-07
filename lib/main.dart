@@ -86,9 +86,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   late Duration _skipStepTime = const Duration(seconds: 5);
   static const Duration MIN_SKIP_TIME = Duration(seconds: 3);
   static const Duration MAX_SKIP_TIME = Duration(seconds: 30);
-  bool _isPlaybackSpeedVisible = false;
   double _playbackSpeed = 1.0;
   final List<double> _speedOptions = [0.25, 0.5, 1.0, 1.25, 1.5, 1.75, 2.0];
+  bool _isPlaybackSpeedEnabled = true;  // Add this property
 
   @override
   void initState() {
@@ -117,8 +117,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Future<void> _pickVideo() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.video);
     if (result != null && result.files.single.path != null) {
-      // Reset the app state first
+      // Reset all video-related states first
       _resetAppState();
+      _resetVideoState();
       
       // Create and initialize the video controller
       _controller = VideoPlayerController.file(File(result.files.single.path!));
@@ -128,8 +129,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         
         // Update the state after successful initialization
         setState(() {
-          _showAnimation = false; // Hide the welcome animation
-          _controller!.setVolume(_volume);
+          _showAnimation = false;
+          _controller!.setVolume(0.0);
+          _volume = 0.0;
+          _previousVolume = 0.1;
           _controller!.addListener(() {
             setState(() {}); // Update the UI on each video frame
           });
@@ -137,14 +140,12 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         
         _updateSkipStepTime();
       } catch (e) {
-        // Handle initialization error
         print('Error initializing video: $e');
         setState(() {
           _controller?.dispose();
           _controller = null;
         });
         
-        // Show error dialog to user
         if (context.mounted) {
           showDialog(
             context: context,
@@ -174,6 +175,18 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       _selectedShape = ShapeType.line;
       _isMaskMode = false;  // Disable mask mode
       _maskShape = null;    // Clear any existing mask
+    });
+  }
+
+  void _resetVideoState() {
+    setState(() {
+      _volume = 0.1;
+      _previousVolume = 0.1;
+      _isVolumeSliderVisible = false;
+      _playbackSpeed = 1.0;
+      _isPlaybackSpeedEnabled = true;
+      _skipStepTime = const Duration(seconds: 5);
+      _isFullScreen = false;
     });
   }
 
@@ -304,12 +317,27 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   }
 
   void _updatePlaybackSpeed(double speed) {
-    if (_controller != null && speed != _playbackSpeed) {
+    if (_controller != null) {
       setState(() {
-        _playbackSpeed = speed;
+        if (!_isPlaybackSpeedEnabled) {
+          _playbackSpeed = 1.0;
+          _isPlaybackSpeedEnabled = true;
+        } else {
+          _playbackSpeed = speed;
+        }
       });
-      _controller!.setPlaybackSpeed(speed);
+      _controller!.setPlaybackSpeed(_playbackSpeed);
     }
+  }
+
+  void _togglePlaybackSpeed() {
+    setState(() {
+      _isPlaybackSpeedEnabled = !_isPlaybackSpeedEnabled;
+      if (!_isPlaybackSpeedEnabled) {
+        _playbackSpeed = 1.0;
+        _controller?.setPlaybackSpeed(1.0);
+      }
+    });
   }
 
   @override
@@ -1143,7 +1171,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                   onPressed: _toggleMute,
                                 ),
-                                // Volume slider remains the same
                                 SizedBox(
                                   width: 100,
                                   child: SliderTheme(
@@ -1163,8 +1190,59 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                     ),
                                   ),
                                 ),
+                                IconButton(
+                                  icon: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.speed,
+                                        color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
+                                      ),
+                                      if (!_isPlaybackSpeedEnabled)
+                                        Transform.rotate(
+                                          angle: -pi / 4,
+                                          child: Container(
+                                            width: 24,
+                                            height: 2,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  onPressed: _togglePlaybackSpeed,
+                                  tooltip: 'Toggle Playback Speed',
+                                ),
+                                Container(
+                                  width: 150,
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 100,
+                                        child: SliderTheme(
+                                          data: SliderThemeData(
+                                            trackHeight: 2,
+                                            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                            overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                            activeTrackColor: Colors.white,
+                                            inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                            thumbColor: Colors.white,
+                                          ),
+                                          child: Slider(
+                                            value: _playbackSpeed,
+                                            min: _speedOptions.first,
+                                            max: _speedOptions.last,
+                                            onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        '${_playbackSpeed.toStringAsFixed(2)}x',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
-                              
                             ),
                             
                             // Right side controls remain the same
@@ -1188,48 +1266,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                   onPressed: _toggleFullScreen,
                                 ),
-                                // Add Playback Speed Controls
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.speed,
-                                    color: _isPlaybackSpeedVisible ? Colors.yellow : Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isPlaybackSpeedVisible = !_isPlaybackSpeedVisible;
-                                    });
-                                  },
-                                  tooltip: 'Playback Speed',
-                                ),
-                                if (_isPlaybackSpeedVisible)
-                                  Container(
-                                    width: 200,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        SliderTheme(
-                                          data: SliderThemeData(
-                                            activeTrackColor: Colors.yellow,
-                                            inactiveTrackColor: Colors.yellow.withOpacity(0.3),
-                                            thumbColor: Colors.yellow,
-                                            trackHeight: 2,
-                                          ),
-                                          child: Slider(
-                                            value: _playbackSpeed,
-                                            min: _speedOptions.first,
-                                            max: _speedOptions.last,
-                                            divisions: _speedOptions.length - 1,
-                                            onChanged: _updatePlaybackSpeed,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${_playbackSpeed.toStringAsFixed(2)}x',
-                                          style: TextStyle(color: Colors.white),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                SizedBox(width: 16),
                               ],
                             ),
                           ],
