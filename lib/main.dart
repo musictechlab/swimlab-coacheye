@@ -86,6 +86,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   late Duration _skipStepTime = const Duration(seconds: 5);
   static const Duration MIN_SKIP_TIME = Duration(seconds: 3);
   static const Duration MAX_SKIP_TIME = Duration(seconds: 30);
+  bool _isPlaybackSpeedVisible = false;
+  double _playbackSpeed = 1.0;
+  final List<double> _speedOptions = [0.25, 0.5, 1.0, 1.25, 1.5, 1.75, 2.0];
 
   @override
   void initState() {
@@ -298,6 +301,15 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     setState(() {
       _isFullScreen = !_isFullScreen;
     });
+  }
+
+  void _updatePlaybackSpeed(double speed) {
+    if (_controller != null && speed != _playbackSpeed) {
+      setState(() {
+        _playbackSpeed = speed;
+      });
+      _controller!.setPlaybackSpeed(speed);
+    }
   }
 
   @override
@@ -777,30 +789,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           },
                           tooltip: 'Close Video',
                         ),
-                        
-                        
-                        // Playback Speed Controls
-                        Padding(
-                          padding: const EdgeInsets.only(left: 10.0),
-                          child: FittedBox(
-                            child: DropdownButton<double>(
-                              value: _controller != null
-                                ? _controller!.value.playbackSpeed
-                                : 1.0,
-                              dropdownColor: Colors.black87,
-                              style: TextStyle(color: Colors.white),
-                              items: [
-                                DropdownMenuItem(value: 0.5, child: Text("0.5x")),
-                                DropdownMenuItem(value: 1.0, child: Text("1x")),
-                                DropdownMenuItem(value: 1.5, child: Text("1.5x")),
-                                DropdownMenuItem(value: 2.0, child: Text("2x")),
-                              ],
-                              onChanged: _setPlaybackSpeed,
-                            ),
-                          ),
-                        ),
-
-
                       ],
                     ),
                   ),
@@ -1176,6 +1164,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                 ),
                               ],
+                              
                             ),
                             
                             // Right side controls remain the same
@@ -1199,6 +1188,48 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                   onPressed: _toggleFullScreen,
                                 ),
+                                // Add Playback Speed Controls
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.speed,
+                                    color: _isPlaybackSpeedVisible ? Colors.yellow : Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPlaybackSpeedVisible = !_isPlaybackSpeedVisible;
+                                    });
+                                  },
+                                  tooltip: 'Playback Speed',
+                                ),
+                                if (_isPlaybackSpeedVisible)
+                                  Container(
+                                    width: 200,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SliderTheme(
+                                          data: SliderThemeData(
+                                            activeTrackColor: Colors.yellow,
+                                            inactiveTrackColor: Colors.yellow.withOpacity(0.3),
+                                            thumbColor: Colors.yellow,
+                                            trackHeight: 2,
+                                          ),
+                                          child: Slider(
+                                            value: _playbackSpeed,
+                                            min: _speedOptions.first,
+                                            max: _speedOptions.last,
+                                            divisions: _speedOptions.length - 1,
+                                            onChanged: _updatePlaybackSpeed,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${_playbackSpeed.toStringAsFixed(2)}x',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                SizedBox(width: 16),
                               ],
                             ),
                           ],
