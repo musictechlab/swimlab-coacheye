@@ -337,24 +337,11 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      //extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          'Swimlab Coach\'s Eye',
-          style: TextStyle(
-            color: Colors.white,
-            shadows: [
-              Shadow(
-                offset: Offset(0, 1),
-                blurRadius: 3.0,
-                color: Colors.black.withOpacity(0.5),
-              ),
-            ],
-          ),
-        ),
-        centerTitle: true,
+        toolbarHeight: 70,
         leading: _controller != null
             ? IconButton(
                 icon: Icon(Icons.home, color: Colors.white),
@@ -362,6 +349,52 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 tooltip: 'Return Home',
               )
             : null,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Left section
+            Expanded(
+              flex: 1,
+              child: Container(),
+            ),
+            // Middle section with title and content
+            Expanded(
+              flex: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Swimlab Coach\'s Eye',
+                    style: TextStyle(
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 3.0,
+                          color: Colors.black.withOpacity(0.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_controller != null) // Only show when video is loaded
+                    Text(
+                      'Video Analysis Mode',
+                      style: TextStyle(
+                        color: Colors.yellow[200],
+                        fontSize: 14,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Right section
+            Expanded(
+              flex: 1,
+              child: Container(),
+            ),
+          ],
+        ),
+        centerTitle: true,
         actions: [],
       ),
       body: _controller == null || !_controller!.value.isInitialized || _showAnimation
