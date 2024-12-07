@@ -1031,14 +1031,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                           },
                           tooltip: 'Adjust Stroke Width',
                         ),
-                        IconButton(
-                          icon: Icon(
-                            _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                            color: Colors.white,
-                          ),
-                          onPressed: _toggleFullScreen,
-                          tooltip: _isFullScreen ? 'Exit Full Screen' : 'Enter Full Screen',
-                        ),
+                      
                       ],
                     ),
                   ),
