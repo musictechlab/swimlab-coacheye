@@ -1048,7 +1048,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                 ),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: _selectedShape == ShapeType.line
+                                    color: _isStrokeWidthSliderVisible
                                       ? Colors.black.withOpacity(0.5)
                                       : Colors.transparent,
                                     shape: BoxShape.rectangle,
