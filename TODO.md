@@ -8,6 +8,7 @@
 - objects deleting
 
 + angles measure
++ pointer above mask circle
 + App icon
 + Splash Screen
 + Landing page

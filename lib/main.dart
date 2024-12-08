@@ -723,7 +723,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       if (_maskShape == null) {
                         setState(() {
                           _currentShape = Shape(
-                            points: [position, position], // Initialize with same point
+                            points: [position, position],
                             color: Colors.transparent,
                             strokeWidth: 1,
                             shapeType: ShapeType.circle,
@@ -897,13 +897,16 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       });
                     }
                   },
-                  child: CustomPaint(
-                    painter: DrawingPainter(
-                      _shapes,
-                      _currentShape,
-                      _calculateAngle,
+                  child: MouseRegion(
+                    cursor: _isMaskMode ? SystemMouseCursors.click : MouseCursor.defer,
+                    child: CustomPaint(
+                      painter: DrawingPainter(
+                        _shapes,
+                        _currentShape,
+                        _calculateAngle,
+                      ),
+                      child: Container(),
                     ),
-                    child: Container(),
                   ),
                 ),
 
