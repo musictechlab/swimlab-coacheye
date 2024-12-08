@@ -601,6 +601,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 children: [
                   Text(
                     'Swimlab Coach\'s Eye',
+                    textAlign: TextAlign.center, // Add this
                     style: TextStyle(
                       color: Colors.white,
                       shadows: [
@@ -615,6 +616,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   if (_controller != null)
                     Text(
                       'Video Analysis Mode',
+                      textAlign: TextAlign.center, // Add this
                       style: TextStyle(
                         color: Colors.yellow[200],
                         fontSize: 14,
@@ -1497,8 +1499,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 left: 0,
                 right: 0,
                 child: Container(
-                  height: 50,
-                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  height: 56, // Explicit height for the toolbar
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.5),
                   ),
@@ -1507,6 +1509,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Add consistent spacing between icons
+                        SizedBox(width: 4),
                         Container(
                           width: MediaQuery.of(context).size.width,
                           child: Row(
@@ -1575,8 +1579,17 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   shape: BoxShape.rectangle,
                                 ),
                                 child: IconButton(
-                                  icon: Icon(Icons.line_axis,
-                                    color: _isMaskMode ? Colors.grey : Colors.green[500]
+                                  // Add padding and constraints to control icon spacing
+                                  padding: EdgeInsets.all(8),
+                                  constraints: BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  icon: Icon(
+                                    Icons.line_axis,
+                                    color: _isMaskMode ? Colors.grey : Colors.green[500],
+                                    // Explicitly set icon size
+                                    size: 24,
                                   ),
                                   onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.line),
                                   tooltip: 'Line',
@@ -1590,11 +1603,18 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   shape: BoxShape.rectangle,
                                 ),
                                 child: IconButton(
+                                  padding: EdgeInsets.all(8),
+                                  constraints: BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
                                   icon: SvgPicture.asset(
-                                    'assets/line_curve.svg', // Ensure you have the SVG file in your assets
-                                    color: _isMaskMode ? Colors.grey : Colors.purple[300], // Set the color of the SVG icon
+                                    'assets/line_curve.svg',
+                                    color: _isMaskMode ? Colors.grey : Colors.purple[300],
                                     width: 24,
                                     height: 24,
+                                    // Add fit property to ensure proper scaling
+                                    fit: BoxFit.contain,
                                   ),
                                   onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.curve),
                                   tooltip: 'Curve',
@@ -1728,6 +1748,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             ],
                           ),
                         ),
+                        SizedBox(width: 4),
                       ],
                     ),
                   ),
@@ -1790,7 +1811,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   left: _triangleToolsetPosition!.dx - 0, // Adjust position as needed
                   bottom: MediaQuery.of(context).size.height - _triangleToolsetPosition!.dy + 0,
                   child: Container(
-                    width: 50,
+                    width: 100,
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.8),
@@ -1802,10 +1823,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
           
                       children: [
                         Row( 
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Change to spaceBetween
                           children: [
                             // Text(
-                            //   'Options',
+                            //   'Triangle Tools',
                             //   style: TextStyle(color: Colors.white, fontSize: 14),
                             // ),
                             IconButton(
@@ -1816,10 +1837,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             ),
                           ],
                         ),
-                        // Divider(color: Colors.blue[500], height: 16),
+                        Divider(color: Colors.grey, height: 16),
                         Row(
                           
-                          // mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             
                             Column(
@@ -2547,8 +2568,8 @@ class DrawingPainter extends CustomPainter {
         if (angles.length == 3) {
           final textStyle = TextStyle(
             color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            fontWeight: FontWeight.normal,
           );
           
           _drawAngleText(canvas, p1, angles[0], textStyle, paint.color);
