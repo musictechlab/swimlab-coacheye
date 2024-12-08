@@ -2141,124 +2141,85 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: Container(
-                  color: Colors.black.withOpacity(0.7),
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Progress bar
-                      SliderTheme(
-                        data: SliderThemeData(
-                          trackHeight: 2,
-                          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                          overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                          activeTrackColor: Colors.white,
-                          inactiveTrackColor: Colors.white.withOpacity(0.3),
-                          thumbColor: Colors.white,
-                          overlayColor: Colors.white.withOpacity(0.3),
-                        ),
-                        child: Slider(
-                          value: _controller!.value.position.inMilliseconds.toDouble(),
-                          min: 0,
-                          max: _controller!.value.duration.inMilliseconds.toDouble(),
-                          onChanged: (value) {
-                            _controller!.seekTo(Duration(milliseconds: value.toInt()));
-                          },
-                        ),
-                      ),
-                      
-                      // Modified Controls row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Check if the device is an iPad (wider screen)
+                    final bool isWideScreen = constraints.maxWidth > 600;
+
+                    return Container(
+                      color: Colors.black.withOpacity(0.7),
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Left side controls with added skip buttons
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.skip_previous, color: Colors.white),
-                                onPressed: () => _controller!.seekTo(Duration.zero),
-                                tooltip: 'Start',
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.arrow_back, color: Colors.white),
-                                onPressed: () {
-                                  _rewind();
-                                },
-                                tooltip: 'Rewind',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                onPressed: _togglePlayPause,
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.arrow_forward, color: Colors.white),
-                                onPressed: () {
-                                  _forward();
-                                },
-                                tooltip: 'Forward',
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.skip_next, color: Colors.white),
-                                onPressed: () => _controller!.seekTo(_controller!.value.duration),
-                                tooltip: 'End',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _volume == 0 ? Icons.volume_off : Icons.volume_up,
-                                  color: Colors.white,
-                                ),
-                                onPressed: _toggleMute,
-                              ),
-                              SizedBox(
-                                width: 100,
-                                child: SliderTheme(
-                                  data: SliderThemeData(
-                                    trackHeight: 2,
-                                    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                                    overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                                    activeTrackColor: Colors.white,
-                                    inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                    thumbColor: Colors.white,
-                                  ),
-                                  child: Slider(
-                                    value: _volume,
-                                    min: 0,
-                                    max: 1,
-                                    onChanged: _setVolume,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: Stack(
-                                  alignment: Alignment.center,
+                          // Progress bar
+                          SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 2,
+                              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                              overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                              activeTrackColor: Colors.white,
+                              inactiveTrackColor: Colors.white.withOpacity(0.3),
+                              thumbColor: Colors.white,
+                              overlayColor: Colors.white.withOpacity(0.3),
+                            ),
+                            child: Slider(
+                              value: _controller!.value.position.inMilliseconds.toDouble(),
+                              min: 0,
+                              max: _controller!.value.duration.inMilliseconds.toDouble(),
+                              onChanged: (value) {
+                                _controller!.seekTo(Duration(milliseconds: value.toInt()));
+                              },
+                            ),
+                          ),
+                          
+                          if (isWideScreen) ...[
+                            // Original iPad toolbar
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Left side controls with added skip buttons
+                                Row(
                                   children: [
-                                    Icon(
-                                      Icons.speed,
-                                      color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
+                                    IconButton(
+                                      icon: Icon(Icons.skip_previous, color: Colors.white),
+                                      onPressed: () => _controller!.seekTo(Duration.zero),
+                                      tooltip: 'Start',
                                     ),
-                                    if (!_isPlaybackSpeedEnabled)
-                                      Transform.rotate(
-                                        angle: -pi / 4,
-                                        child: Container(
-                                          width: 24,
-                                          height: 2,
-                                          color: Colors.red,
-                                        ),
+                                    IconButton(
+                                      icon: Icon(Icons.arrow_back, color: Colors.white),
+                                      onPressed: () {
+                                        _rewind();
+                                      },
+                                      tooltip: 'Rewind',
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 28,
                                       ),
-                                  ],
-                                ),
-                                onPressed: _togglePlaybackSpeed,
-                                tooltip: 'Toggle Playback Speed',
-                              ),
-                              Container(
-                                width: 150,
-                                child: Row(
-                                  children: [
+                                      onPressed: _togglePlayPause,
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.arrow_forward, color: Colors.white),
+                                      onPressed: () {
+                                        _forward();
+                                      },
+                                      tooltip: 'Forward',
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.skip_next, color: Colors.white),
+                                      onPressed: () => _controller!.seekTo(_controller!.value.duration),
+                                      tooltip: 'End',
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        _volume == 0 ? Icons.volume_off : Icons.volume_up,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: _toggleMute,
+                                    ),
                                     SizedBox(
                                       width: 100,
                                       child: SliderTheme(
@@ -2271,53 +2232,160 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                           thumbColor: Colors.white,
                                         ),
                                         child: Slider(
-                                          value: _playbackSpeed,
-                                          min: _speedOptions.first,
-                                          max: _speedOptions.last,
-                                          onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
+                                          value: _volume,
+                                          min: 0,
+                                          max: 1,
+                                          onChanged: _setVolume,
                                         ),
                                       ),
                                     ),
-                                    Text(
-                                      '${_playbackSpeed.toStringAsFixed(2)}x',
-                                      style: TextStyle(color: Colors.white),
+                                    IconButton(
+                                      icon: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.speed,
+                                            color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
+                                          ),
+                                          if (!_isPlaybackSpeedEnabled)
+                                            Transform.rotate(
+                                              angle: -pi / 4,
+                                              child: Container(
+                                                width: 24,
+                                                height: 2,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      onPressed: _togglePlaybackSpeed,
+                                      tooltip: 'Toggle Playback Speed',
+                                    ),
+                                    Container(
+                                      width: 150,
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 100,
+                                            child: SliderTheme(
+                                              data: SliderThemeData(
+                                                trackHeight: 2,
+                                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                                overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                                activeTrackColor: Colors.white,
+                                                inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                                thumbColor: Colors.white,
+                                              ),
+                                              child: Slider(
+                                                value: _playbackSpeed,
+                                                min: _speedOptions.first,
+                                                max: _speedOptions.last,
+                                                onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${_playbackSpeed.toStringAsFixed(2)}x',
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          
-                          // Right side controls remain the same
-                          Row(
-                            children: [
-                              Text(
-                                '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              SizedBox(width: 16),
-                              IconButton(
-                                icon: Icon(Icons.settings, color: Colors.white),
-                                onPressed: () {
-                                  // Add settings menu functionality
-                                },
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                                  color: Colors.white,
+                                
+                                // Right side controls
+                                Row(
+                                  children: [
+                                    Text(
+                                      '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    SizedBox(width: 16),
+                                    IconButton(
+                                      icon: Icon(Icons.settings, color: Colors.white),
+                                      onPressed: () {
+                                        // Add settings menu functionality
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: _toggleFullScreen,
+                                    ),
+                                  ],
                                 ),
-                                onPressed: _toggleFullScreen,
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ] else ...[
+                            // Simplified iPhone toolbar
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Time display
+                                Text(
+                                  '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+                                  style: TextStyle(color: Colors.white, fontSize: 12),
+                                ),
+                                
+                                // Main controls
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.replay_10, color: Colors.white),
+                                      onPressed: () => _rewind(),
+                                      iconSize: 20,
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                      onPressed: _togglePlayPause,
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.forward_10, color: Colors.white),
+                                      onPressed: () => _forward(),
+                                      iconSize: 20,
+                                    ),
+                                  ],
+                                ),
+                                
+                                // Right side controls
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        _volume == 0 ? Icons.volume_off : Icons.volume_up,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      onPressed: _toggleMute,
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      onPressed: _toggleFullScreen,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
-
               // Play/Pause overlay
               if (!_controller!.value.isPlaying && _shapes.isEmpty && _currentShape == null)
                 Positioned.fill(
