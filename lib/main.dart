@@ -950,24 +950,24 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             IconButton(
                               icon: Icon(
                                 Icons.restart_alt, 
-                                color: _shapes.isEmpty ? Colors.grey : Colors.white
+                                color: _isMaskMode ? Colors.grey : (_shapes.isEmpty ? Colors.grey : Colors.white)
                               ),
-                              onPressed: _shapes.isEmpty ? null : _resetAppState,
+                              onPressed: _isMaskMode ? null : (_shapes.isEmpty ? null : _resetAppState),
                             ),
                             IconButton(
                               icon: Icon(
                                 Icons.undo, 
-                                color: _shapes.isEmpty ? Colors.grey : Colors.white
+                                color: _isMaskMode ? Colors.grey : (_shapes.isEmpty ? Colors.grey : Colors.white)
                               ),
-                              onPressed: _shapes.isEmpty ? null : _undo,
+                              onPressed: _isMaskMode ? null : (_shapes.isEmpty ? null : _undo),
                               tooltip: 'Undo',
                             ),
                             IconButton(
                               icon: Icon(
                                 Icons.redo, 
-                                color: _undoStack.isEmpty ? Colors.grey : Colors.white
+                                color: _isMaskMode ? Colors.grey : (_undoStack.isEmpty ? Colors.grey : Colors.white)
                               ),
-                              onPressed: _undoStack.isEmpty ? null : _redo,
+                              onPressed: _isMaskMode ? null : (_undoStack.isEmpty ? null : _redo),
                               tooltip: 'Redo',
                             ),
                             VerticalDivider(
@@ -978,9 +978,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                               width: 20,
                             ),
                             IconButton(
-                              icon:
-                                  Icon(Icons.color_lens, color: Colors.yellow[500]),
-                              onPressed: () {
+                              icon: Icon(Icons.color_lens, 
+                                color: _isMaskMode ? Colors.grey : Colors.yellow[500]
+                              ),
+                              onPressed: _isMaskMode ? null : () {
                                 showDialog(
                                   context: context,
                                   builder: (context) {
@@ -1003,111 +1004,110 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                             ),
                             Container(
                               decoration: BoxDecoration(
-                              color: _selectedShape == ShapeType.line
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                              shape: BoxShape.rectangle,
+                                color: _selectedShape == ShapeType.line && !_isMaskMode
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
-                              icon: Icon(Icons.line_axis,
-                                color: Colors.green[500]),
-                              onPressed: () => _selectShape(ShapeType.line),
-                              tooltip: 'Line',
+                                icon: Icon(Icons.line_axis,
+                                  color: _isMaskMode ? Colors.grey : Colors.green[500]
+                                ),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.line),
+                                tooltip: 'Line',
                               ),
                             ),
                             Container(
                               decoration: BoxDecoration(
-                              color: _selectedShape == ShapeType.curve
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                              shape: BoxShape.rectangle,
+                                color: _selectedShape == ShapeType.curve && !_isMaskMode
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
-                              icon: SvgPicture.asset(
-                                'assets/line_curve.svg', // Ensure you have the SVG file in your assets
-                                color: Colors.purple[300], // Set the color of the SVG icon
-                                width: 24,
-                                height: 24,
-                              ),
-                              onPressed: () => _selectShape(ShapeType.curve),
-                              tooltip: 'Curve',
+                                icon: SvgPicture.asset(
+                                  'assets/line_curve.svg', // Ensure you have the SVG file in your assets
+                                  color: _isMaskMode ? Colors.grey : Colors.purple[300], // Set the color of the SVG icon
+                                  width: 24,
+                                  height: 24,
+                                ),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.curve),
+                                tooltip: 'Curve',
                               ),
                             ),
-                              
                             Container(
                               decoration: BoxDecoration(
-                              color: _selectedShape == ShapeType.arrow
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                              shape: BoxShape.rectangle,
+                                color: _selectedShape == ShapeType.arrow && !_isMaskMode
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
-                              icon: Icon(Icons.arrow_back,
-                                color: Colors.white),
-                              onPressed: () => _selectShape(ShapeType.arrow),
-                              tooltip: 'Arrow',
+                                icon: Icon(Icons.arrow_back,
+                                  color: _isMaskMode ? Colors.grey : Colors.white
+                                ),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.arrow),
+                                tooltip: 'Arrow',
                               ),
                             ),
-
                             Container(
                               decoration: BoxDecoration(
-                              color: _selectedShape == ShapeType.rectangle
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                              shape: BoxShape.rectangle,
+                                color: _selectedShape == ShapeType.rectangle && !_isMaskMode
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
-                              icon: Icon(Icons.crop_square,
-                                color: Colors.red[200]),
-                              onPressed: () => _selectShape(ShapeType.rectangle),
-                              tooltip: 'Rectangle',
+                                icon: Icon(Icons.crop_square,
+                                  color: _isMaskMode ? Colors.grey : Colors.red[200]
+                                ),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.rectangle),
+                                tooltip: 'Rectangle',
                               ),
                             ),
-                            
                             Container(
                               decoration: BoxDecoration(
-                              color: _selectedShape == ShapeType.circle
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                              shape: BoxShape.rectangle,
+                                color: _selectedShape == ShapeType.circle && !_isMaskMode
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
-                              icon: Icon(Icons.circle_outlined, color: Colors.orange[500]),
-                              onPressed: () => _selectShape(ShapeType.circle),
-                              tooltip: 'Circle',
+                                icon: Icon(Icons.circle_outlined, color: _isMaskMode ? Colors.grey : Colors.orange[500]),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.circle),
+                                tooltip: 'Circle',
                               ),
                             ),
-
                             Container(
                               decoration: BoxDecoration(
-                              color: _selectedShape == ShapeType.triangle
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                              shape: BoxShape.rectangle,
+                                color: _selectedShape == ShapeType.triangle && !_isMaskMode
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
-                              icon: Icon(Icons.change_history,
-                                color: Colors.blue[500]),
-                              onPressed: () => _selectShape(ShapeType.triangle),
-                              tooltip: 'Triangle',
+                                icon: Icon(Icons.change_history,
+                                  color: _isMaskMode ? Colors.grey : Colors.blue[500]
+                                ),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.triangle),
+                                tooltip: 'Triangle',
                               ),
                             ),
-
                             Container(
                               decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.protractor
+                                color: _selectedShape == ShapeType.protractor && !_isMaskMode
                                   ? Colors.black.withOpacity(0.5)
                                   : Colors.transparent,
                                 shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
                                 icon: Icon(Icons.architecture, // Using architecture icon for protractor
-                                  color: Colors.blue[200]),
-                                onPressed: () => _selectShape(ShapeType.protractor),
+                                  color: _isMaskMode ? Colors.grey : Colors.blue[200]
+                                ),
+                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.protractor),
                                 tooltip: 'Protractor',
                               ),
                             ),
-
                             VerticalDivider(
                               color: Colors.grey,
                               thickness: 1,
@@ -1115,35 +1115,20 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                               endIndent: 8,
                               width: 20,
                             ),
-                            
-                            // Add Mask Toggle button to the right toolbar
                             Container(
                               decoration: BoxDecoration(
-                                color: _isMaskMode
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.flashlight_on,
-                                  color: _isMaskMode ? Colors.yellow : Colors.white,
-                                ),
-                                onPressed: _toggleMaskMode,
-                                tooltip: 'Toggle Mask Mode',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _isStrokeWidthSliderVisible
+                                color: _isStrokeWidthSliderVisible && !_isMaskMode
                                   ? Colors.black.withOpacity(0.5)
                                   : Colors.transparent,
                                 shape: BoxShape.rectangle,
                               ),
                               child: IconButton(
                                 key: _strokeWidthIconKey,
-                                icon: Icon(Icons.line_weight, color: Colors.white),
-                                onPressed: () {
+                                icon: Icon(
+                                  Icons.line_weight, 
+                                  color: _isMaskMode ? Colors.grey : Colors.white
+                                ),
+                                onPressed: _isMaskMode ? null : () {
                                   final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
                                   final position = renderBox.localToGlobal(Offset.zero);
                                   setState(() {
@@ -1154,7 +1139,23 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                 tooltip: 'Adjust Stroke Width',
                               ),
                             ),
-                          
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.flashlight_on,
+                                  color: _isMaskMode ? Colors.yellow : Colors.yellow,
+                                ),
+                                onPressed: _toggleMaskMode,
+                                tooltip: 'Toggle Mask Mode',
+                              ),
+                            ),
+                            
                           ],
                         ),
                       ),
