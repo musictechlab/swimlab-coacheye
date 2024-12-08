@@ -1,0 +1,391 @@
+commit d0e982fe6c6bb4efb96cb6fde4ed2d6b749db080
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 23:18:01 2024 +0100
+
+    1.0.1+21
+
+commit d0c4bbc01b91484a93dab99f22ad8af5c2e75db8
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 22:49:15 2024 +0100
+
+    Responsive play controls
+
+commit 8501cba31c3a9feef53cdfec400edb7898b511e3
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 22:43:49 2024 +0100
+
+    REC icon added
+
+commit 6e8e6850ec2c9bf21ac1dbd377e86a1d58d0245e
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 22:41:05 2024 +0100
+
+    Share button added
+
+commit f0cec16f05e5b3cf5c10d79333a69bb6ff9b162b
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 15:09:15 2024 +0100
+
+    1.1.1+20 - screen recording testing
+
+commit c2da23af5c9b74e0fbc7db27eefe8107a49468aa
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 14:29:15 2024 +0100
+
+    Attempt to record screen
+    '
+
+commit 6b862b704fa7a2b19244a9fbb1ae22e5cd7c8bed
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 13:55:27 2024 +0100
+
+    Front swimmer
+
+commit 961ecbcd3c06b2fec6ce8cb2aceaefbf56769a53
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 05:02:39 2024 +0100
+
+    Bump version. UX changes
+
+commit 45f9a794f80b9f5858430525ff545eff14b7a817
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 04:53:57 2024 +0100
+
+    Small adjustments
+
+commit 722a398d697d495a553e1442af86a3d44ec6f3e6
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 04:37:45 2024 +0100
+
+    UX adjustments. Version to testing
+
+commit 9bdbd9dc4f45322ea8f7baf1f1c2fffadfe9f37f
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 02:46:45 2024 +0100
+
+    Disable toolset when mask is turned on
+
+commit a4334998fff608090beeb863bef0c4f256b4184d
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 02:31:43 2024 +0100
+
+    Add screenshot demo
+
+commit 65c1b2d9f7f5a17272d090c8b81b743f701a23b9
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 02:13:18 2024 +0100
+
+    Ponter above mask circle
+
+commit 98bef8defabf66d91f813d34b83486756de92916
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:52:24 2024 +0100
+
+    Icon for desktop
+
+commit 14050a7e6e4f772dbec0d020c95813fab6b3d4cd
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:48:15 2024 +0100
+
+    Protractor resizing
+
+commit bfca113f521ca882d644dab39f2e3b705c19fbf7
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:45:44 2024 +0100
+
+    Redo/Undo gray when there are no actions made
+
+commit 1c8b092205bdaa7acc53eb132424559294dba89c
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:36:02 2024 +0100
+
+    Stroke Icon focus bg
+
+commit 29af8b0c9eec29a83c107c2ebc61d645d012419f
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:22:05 2024 +0100
+
+    Play button only when there are no drawings
+
+commit 70dd5595fb9a8020fd65e738718d6f3f7022bd86
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:14:32 2024 +0100
+
+    Add dividers
+
+commit 614b03d3db5f4635d31580e51db38386651c673a
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:11:03 2024 +0100
+
+    Position stroke width slider
+
+commit ef5e909ed6e3aca22be38e0e19f84b9422815db8
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 01:02:54 2024 +0100
+
+    Center toolbar
+
+commit 2c75539447c38eba15de57ea385f2a9dbc7ed9e4
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:58:09 2024 +0100
+
+    Removed full screen icon
+
+commit 86aab1266a6ae1ac3f9a490426f2180d4a417797
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:46:18 2024 +0100
+
+    Removed right side bar
+
+commit 9c2597dc46dcda5958c7d02d60710d326cdfd184
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:43:50 2024 +0100
+
+    Reset app state when video reloaded
+
+commit 7213fc40a8ac11ff74369aaf7d8440eed1c7647e
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:31:56 2024 +0100
+
+    Playback controls
+
+commit 70adc1d90b18bc8fec394ec652ae6641eebda8e6
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:20:26 2024 +0100
+
+    Add pointer about play icon
+
+commit d4295f93e80deef864102ddcd8cc95c9404e1bec
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:10:20 2024 +0100
+
+    Remove playback icons from right bar
+
+commit e6fd5bb103bb06fe02a42f77747440470923ba81
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 8 00:01:51 2024 +0100
+
+    Rewind/Forward
+
+commit 2d412664a2410173d442fe9c964bfa74d7a5a858
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Dec 7 23:49:19 2024 +0100
+
+    Add play icon above video
+
+commit 3333a299e26a4d08494fb758b2e2bc0e3495fc11
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Dec 7 23:46:50 2024 +0100
+
+    Bottom players controlls
+
+commit f85a792a7f06c436f8efbf119d28a7f7ee98c909
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Dec 7 23:42:59 2024 +0100
+
+    Mute video by default
+
+commit 2e03a8641b999fc15b2325928ccb43644bec78f9
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Dec 7 23:35:14 2024 +0100
+
+    App bar adjusments
+
+commit aa39d5aa2833ae3fa061e5619c77b3fef2e2a026
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Dec 7 23:29:55 2024 +0100
+
+    Full screen option
+
+commit 86d76eb5f55cdb4fafeca94548f1ec543b9d1a2c
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Dec 7 23:08:13 2024 +0100
+
+    Add background and fix opening video
+
+commit eb70df98ce0084a0e849c9756fe89e71009be776
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Dec 2 11:51:58 2024 +0100
+
+    Bump version
+
+commit 3795b69d3482b72045522968b922d9f7bd0a4efc
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Dec 2 02:13:12 2024 +0100
+
+    Info pages
+
+commit 146ac29ac98da37471ffd409cc2e188aa552a776
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Dec 2 00:55:34 2024 +0100
+
+    App background
+
+commit 927a8638c2a3d6172c3d0c5d2d70938438f150de
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Dec 2 00:34:52 2024 +0100
+
+    Video mask
+
+commit bd66cf102a38e249777b32e0c0501f54a838bbee
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Dec 2 00:20:07 2024 +0100
+
+    Moving object and resigin them. Protractor
+
+commit 8b8ca16aff7a8ff85cb42823005f3921faec0dc2
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 23:45:47 2024 +0100
+
+    Add moving objects function
+
+commit edf46b731f6226d536b7a9a059ed0cee2d74d7c1
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 23:29:29 2024 +0100
+
+    Bump version
+
+commit 2fb9964e37c5ae4a1239d1298969f02d7c4422c7
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 23:29:07 2024 +0100
+
+    Splash screen
+
+commit 066664c6bad229d0a0b15637778190aa54cb225f
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 18:54:48 2024 +0100
+
+    test
+
+commit 0b45ff1984982a9297b0af597f625bf738fb8e0f
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 18:04:10 2024 +0100
+
+    test
+
+commit 7590e2ced76ebc1f3d8cedba8756cb5088ce21a7
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 18:02:11 2024 +0100
+
+    test
+
+commit 752e94aae3b2d8b888a1e0192c06ea484ebcb483
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 17:56:12 2024 +0100
+
+    test
+
+commit 8d0c131af16ccdc2cc7ee9dbe958f189f78c7304
+Merge: 752b15f f60eefa
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 17:51:02 2024 +0100
+
+    test
+
+commit 752b15f38c59068990c8a98235fe28502b5086f7
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Dec 1 17:45:24 2024 +0100
+
+    Try to fix crash
+
+commit f60eefaceb055a15e5024092bb641a834869e8ac
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Nov 30 23:27:15 2024 +0100
+
+    debug
+
+commit 53ab1ee994c26110e4448aee3a21b826328896ba
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Nov 30 23:02:09 2024 +0100
+
+    Crash fix
+
+commit 35bb6b18c7235cd8390c275d6b54c2ffe5db8dba
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Nov 30 02:41:20 2024 +0100
+
+    Adjustments
+
+commit 913050f46d1c8fb380f93483715fa0f10daeb532
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sat Nov 30 01:52:58 2024 +0100
+
+    Icons
+
+commit 77677ee131b78ca7a162cc50d844fec3820929d6
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Wed Nov 27 09:07:55 2024 +0100
+
+    Bump version
+
+commit 52970a16f9eb808b54ed3504e988a51d466be4b6
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Nov 25 23:32:43 2024 +0100
+
+    Version bump
+
+commit b157851e56cf7b63aaeadeca3150b4ad8dacaa2e
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Nov 24 22:59:46 2024 +0100
+
+    Testing opening urls
+
+commit 725cb21b6675c64b88cb152b7d0c8dc5563f81ea
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Nov 24 22:50:03 2024 +0100
+
+    Version bump
+
+commit 495466f4920217be5f41effbdf0264e25016ab82
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Nov 24 03:53:54 2024 +0100
+
+    Testing
+
+commit 72bf4a7f8eac69a4e06ec3f1d52585b7a9821548
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Sun Nov 24 03:10:32 2024 +0100
+
+    TI-Cracow UI
+
+commit 2f79c621521fc3f229c4bc8ac40f4a1d4dadf1f9
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Tue Nov 19 00:58:22 2024 +0100
+
+    Video demo
+
+commit caa63093eabb3d90cc3eb7ac3b54f6a27163c2ba
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Mon Nov 18 23:46:12 2024 +0100
+
+    Open Source Init commit
+
+commit 5c6dcde7970d0a990e390999bbb296cca38b2af9
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Fri Nov 15 02:04:09 2024 +0100
+
+    Adjusments for ipad air 5th gen
+
+commit ff63bbce4bd823b22055998562f99c93a1c10a01
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Fri Nov 15 01:06:16 2024 +0100
+
+    Toolbar
+
+commit 36b4e93a45088238b4e688fffa7cda5cc4156bb0
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Fri Nov 15 00:26:54 2024 +0100
+
+    Almost working app :)
+
+commit dba6030246f0614e59b1007dac81da95f58be13a
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Fri Nov 15 00:13:32 2024 +0100
+
+    Initial commit
+
+commit 60f6c214ff77b84ffb05a7b574e3a8beeb93af64
+Author: Mariusz Smenżyk <mariusz@bravelab.io>
+Date:   Fri Nov 15 00:06:00 2024 +0100
+
+    first commit

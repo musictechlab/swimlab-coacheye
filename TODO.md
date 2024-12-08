@@ -1,23 +1,23 @@
 - screen splitting - two videos comparision...
 - video preloader
-- video recording
-- objects moving (shapes)
-- objecs resizing
 - objects rotation
 - objects deleting
 - screen cast
 - playing toolbar on mobile
+- https://cast.google.com/publish/#/overview
 
 
-IN PROGRESS:
+IN PROGRESS / TESTING
 ~ export screenshot
 ~ share video
-
+~ video recording
+~ objects moving (shapes)
+~ objecs resizing
+~ icon for desktop
 
 NICE TO HAVE:
 - native macOS screen recording solution using platform channels
     - Or hide/disable the recording button on macOS
-- Document the platform limitations in your app's documentation
 
 
 DONE:
@@ -26,5 +26,4 @@ DONE:
 + App icon
 + Splash Screen
 + Landing page
-- icon for desktop
 
