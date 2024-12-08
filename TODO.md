@@ -2,9 +2,13 @@
 - export screenshot
 - video preloader
 - video recording
-- angles measure
 - objects moving (shapes)
 - objecs resizing
+- objects rotation
+- objects deleting
+
++ angles measure
 + App icon
 + Splash Screen
 + Landing page
+- icon for desktop
