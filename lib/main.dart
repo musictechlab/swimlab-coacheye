@@ -62,7 +62,7 @@ class VideoEditorScreen extends StatefulWidget {
 
 class _VideoEditorScreenState extends State<VideoEditorScreen> {
   VideoPlayerController? _controller;
-  Color _selectedColor = Colors.greenAccent;
+  Color _selectedColor = Colors.lightGreen;
   double _strokeWidth = 10.0;
   ShapeType _selectedShape = ShapeType.line;
   final List<Shape> _shapes = [];
@@ -172,7 +172,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       _shapes.clear();
       _undoStack.clear();
       _currentShape = null;
-      _selectedColor = Colors.green;
+      _selectedColor = Colors.lightGreen;
       _strokeWidth = 7.0;
       _selectedShape = ShapeType.line;
       _isMaskMode = false;  // Disable mask mode
@@ -870,17 +870,26 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 IconButton(
-                                  icon: Icon(Icons.restart_alt, color: Colors.white),
-                                  onPressed: _resetAppState,
+                                  icon: Icon(
+                                    Icons.restart_alt, 
+                                    color: _shapes.isEmpty ? Colors.grey : Colors.white
+                                  ),
+                                  onPressed: _shapes.isEmpty ? null : _resetAppState,
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.undo, color: Colors.white),
-                                  onPressed: _undo,
+                                  icon: Icon(
+                                    Icons.undo, 
+                                    color: _shapes.isEmpty ? Colors.grey : Colors.white
+                                  ),
+                                  onPressed: _shapes.isEmpty ? null : _undo,
                                   tooltip: 'Undo',
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.redo, color: Colors.white),
-                                  onPressed: _redo,
+                                  icon: Icon(
+                                    Icons.redo, 
+                                    color: _undoStack.isEmpty ? Colors.grey : Colors.white
+                                  ),
+                                  onPressed: _undoStack.isEmpty ? null : _redo,
                                   tooltip: 'Redo',
                                 ),
                                 VerticalDivider(
