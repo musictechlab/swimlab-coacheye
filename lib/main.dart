@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:async';  // Add this line
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:file_picker/file_picker.dart';
@@ -14,6 +15,9 @@ import 'pages/about_page.dart';
 import 'pages/swimbuddy_page.dart';
 import 'pages/settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
+import 'pages/recordings_page.dart';
 
 
 void main() {
@@ -91,6 +95,10 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   int _selectedIndex = 0;
   static const int HOME_INDEX = 0;
   static const int OPEN_VIDEO_INDEX = 1;
+  static const int SWIMBUDDY_INDEX = 2;
+  static const int SETTINGS_INDEX = 3;
+  static const int ABOUT_INDEX = 4;
+ static const int RECORDINGS_INDEX = 5;
   bool _showAnimation = true; // Add this property
   bool _isFullScreen = false;
   late Duration _skipStepTime = const Duration(seconds: 5);
@@ -117,6 +125,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   final GlobalKey _triangleIconKey = GlobalKey();
   bool _isTriangleToolsetVisible = false;
   Offset? _triangleToolsetPosition;
+  bool _isRecording = false;
+  String _recordingDuration = '00:00';
 
   @override
   void initState() {
@@ -427,6 +437,16 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             });
           });
           break;
+        case RECORDINGS_INDEX:
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RecordingsPage()),
+          ).then((_) {
+            setState(() {
+              _selectedIndex = HOME_INDEX;
+            });
+          });
+          break;
       }
     });
   }
@@ -553,6 +573,76 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     });
   }
 
+  void _toggleRecording() {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No video loaded to record')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isRecording = !_isRecording;
+      if (_isRecording) {
+        // Start recording
+        _startRecording();
+      } else {
+        // Stop recording
+        _stopRecording();
+      }
+    });
+  }
+
+  void _startRecording() {
+    // Start a timer to update recording duration
+    Timer.periodic(Duration(seconds: 1), (timer) {
+      if (!_isRecording) {
+        timer.cancel();
+        return;
+      }
+      
+      setState(() {
+        final duration = Duration(seconds: timer.tick);
+        _recordingDuration = _formatDuration(duration);
+      });
+    });
+  }
+
+  Future<void> _stopRecording() async {
+    setState(() {
+      _recordingDuration = '00:00';
+    });
+
+    try {
+      // Get the application documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final filePath = '${directory.path}/recording_$timestamp.mp4';
+
+      // Save the recording file
+      // Note: You'll need to implement the actual video recording logic here
+      // using a package like camera or screen_recorder
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Recording saved to: $filePath'),
+            action: SnackBarAction(
+              label: 'Open Folder',
+              onPressed: () => _openScreenshotFolder(filePath),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save recording: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -634,13 +724,30 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         ),
         centerTitle: true,
         actions: [
-          // Add screenshot button to AppBar
-          if (_controller != null && _controller!.value.isInitialized)
+          if (_controller != null && _controller!.value.isInitialized) ...[
+            // Recording button
+            IconButton(
+              icon: Icon(
+                _isRecording ? Icons.stop_circle : Icons.fiber_manual_record,
+                color: _isRecording ? Colors.red : Colors.white,
+              ),
+              onPressed: _toggleRecording,
+              tooltip: _isRecording ? 'Stop Recording' : 'Start Recording',
+            ),
+            if (_isRecording)
+              Center(
+                child: Text(
+                  _recordingDuration,
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            // Add screenshot button to AppBar
             IconButton(
               icon: Icon(Icons.camera_alt, color: Colors.white),
               onPressed: _captureScreenshot,
               tooltip: 'Take Screenshot',
             ),
+          ],
         ],
       ),
       body: RepaintBoundary(
@@ -2136,6 +2243,11 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   BottomNavigationBarItem(
                     icon: Icon(Icons.info_outline),
                     label: 'About',
+                    backgroundColor: Colors.black87,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.videocam),
+                    label: 'Recordings',
                     backgroundColor: Colors.black87,
                   ),
                 ],
