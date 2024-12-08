@@ -9,9 +9,10 @@
 - playing toolbar on mobile
 
 
-
 IN PROGRESS:
 ~ export screenshot
+~ share video
+
 
 NICE TO HAVE:
 - native macOS screen recording solution using platform channels

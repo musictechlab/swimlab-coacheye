@@ -16,9 +16,9 @@ import 'pages/swimbuddy_page.dart';
 import 'pages/settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/scheduler.dart';
 import 'pages/recordings_page.dart';
 import 'package:flutter_screen_recording/flutter_screen_recording.dart';
+import 'package:share_plus/share_plus.dart';
 
 
 void main() {
@@ -130,6 +130,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   String _recordingDuration = '00:00';
   Timer? _recordingTimer;  // Add this property
   bool _isInitialized = true;  // We can set this to true since we don't need initialization
+  // Add this property to the class
+  final GlobalKey _shareButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -158,28 +160,34 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Future<void> _pickVideo() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.video);
     if (result != null && result.files.single.path != null) {
+      // Debug print to verify the path
+      print('Selected video path: ${result.files.single.path}');
+      
       // Reset all video-related states first
       _resetAppState();
       _resetVideoState();
       
-      // Create and initialize the video controller
-      _controller = VideoPlayerController.file(File(result.files.single.path!));
-      
       try {
-        await _controller!.initialize();
-        
-        // Update the state after successful initialization
-        setState(() {
-          _showAnimation = false;
-          _controller!.setVolume(0.0);
-          _volume = 0.0;
-          _previousVolume = 0.1;
-          _controller!.addListener(() {
-            setState(() {}); // Update the UI on each video frame
+        final file = File(result.files.single.path!);
+        if (await file.exists()) {
+          _controller = VideoPlayerController.file(file);
+          
+          await _controller!.initialize();
+          
+          setState(() {
+            _showAnimation = false;
+            _controller!.setVolume(0.0);
+            _volume = 0.0;
+            _previousVolume = 0.1;
+            _controller!.addListener(() {
+              setState(() {}); // Update the UI on each video frame
+            });
           });
-        });
-        
-        _updateSkipStepTime();
+          
+          _updateSkipStepTime();
+        } else {
+          throw Exception('Selected video file does not exist');
+        }
       } catch (e) {
         print('Error initializing video: $e');
         setState(() {
@@ -192,7 +200,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             context: context,
             builder: (context) => AlertDialog(
               title: Text('Error'),
-              content: Text('Failed to load video. Please try another file.'),
+              content: Text('Failed to load video: $e'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -678,6 +686,76 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     }
   }
 
+  Future<void> _shareVideo() async {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No video loaded to share')),
+      );
+      return;
+    }
+
+    try {
+      String filePath = _controller!.dataSource;
+      if (filePath.startsWith('file://')) {
+        filePath = filePath.substring(7);
+      }
+      
+      print('Attempting to share file: $filePath');
+      final videoFile = File(filePath);
+      
+      if (await videoFile.exists()) {
+        // Get the render box of the share button
+        final RenderBox? buttonBox = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+        
+        if (buttonBox != null) {
+          final buttonPosition = buttonBox.localToGlobal(Offset.zero);
+          final buttonSize = buttonBox.size;
+          final bounds = buttonPosition & buttonSize;
+          
+          print('Button bounds: $bounds');
+          print('Button position: $buttonPosition');
+          print('Button size: $buttonSize');
+          print('Platform: ${Platform.operatingSystem}');
+          
+          // Share the file with position origin
+          if (Platform.isIOS || Platform.isMacOS) {
+            await Share.shareXFiles(
+              [XFile(videoFile.absolute.path)],
+              text: 'Check out this video from CoachEye',
+              sharePositionOrigin: bounds,
+            );
+          } else {
+            await Share.shareXFiles(
+              [XFile(videoFile.absolute.path)],
+              text: 'Check out this video from CoachEye',
+            );
+          }
+        } else {
+          print('Button box is null');
+          // Fallback to sharing without position
+          await Share.shareXFiles(
+            [XFile(videoFile.absolute.path)],
+            text: 'Check out this video from CoachEye',
+          );
+        }
+      } else {
+        print('File does not exist at path: $filePath');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Video file not found at: $filePath')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error sharing video: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to share video: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -760,6 +838,13 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         centerTitle: true,
         actions: [
           if (_controller != null && _controller!.value.isInitialized) ...[
+            // Add share icon before the recording button
+            IconButton(
+              key: _shareButtonKey,
+              icon: Icon(Icons.share, color: Colors.white),
+              onPressed: _shareVideo,
+              tooltip: 'Share Video',
+            ),
             // Recording button
             IconButton(
               icon: Icon(
@@ -2248,8 +2333,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: Offset(0, -2),
                   ),
                 ],
               ),
