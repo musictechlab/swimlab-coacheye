@@ -883,9 +883,12 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   onPressed: _redo,
                                   tooltip: 'Redo',
                                 ),
-                                Divider(
+                                VerticalDivider(
                                   color: Colors.grey,
                                   thickness: 1,
+                                  indent: 8,
+                                  endIndent: 8,
+                                  width: 20,
                                 ),
                                 IconButton(
                                   icon:
@@ -1018,6 +1021,14 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                 ),
 
+                                VerticalDivider(
+                                  color: Colors.grey,
+                                  thickness: 1,
+                                  indent: 8,
+                                  endIndent: 8,
+                                  width: 20,
+                                ),
+                                
                                 // Add Mask Toggle button to the right toolbar
                                 Container(
                                   decoration: BoxDecoration(
@@ -1044,7 +1055,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                   ),
                                   child: IconButton(
                                     key: _strokeWidthIconKey,
-                                    icon: Icon(Icons.line_weight, color: Colors.yellow[500]),
+                                    icon: Icon(Icons.line_weight, color: Colors.white),
                                     onPressed: () {
                                       final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
                                       final position = renderBox.localToGlobal(Offset.zero);
