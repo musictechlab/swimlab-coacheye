@@ -1,14 +1,19 @@
 import 'dart:io';
 import 'dart:math';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/rendering.dart';
 import 'pages/about_page.dart';
 import 'pages/swimbuddy_page.dart';
 import 'pages/settings_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 void main() {
@@ -93,6 +98,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Offset? _strokeWidthPosition;
   bool _isResizingProtractor = false;
   Shape? _selectedProtractor;
+  final GlobalKey _screenshotKey = GlobalKey();
 
   @override
   void initState() {
@@ -409,6 +415,101 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     return "$twoDigitMinutes:$twoDigitSeconds";
   }
 
+  Future<void> _captureScreenshot() async {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No video loaded to capture')),
+      );
+      return;
+    }
+
+    // Pause video while taking screenshot
+    bool wasPlaying = _controller!.value.isPlaying;
+    if (wasPlaying) {
+      await _controller!.pause();
+    }
+
+    try {
+      RenderRepaintBoundary boundary = _screenshotKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData != null) {
+        Uint8List pngBytes = byteData.buffer.asUint8List();
+
+        // Generate timestamp for unique filename
+        String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        
+        // Save the screenshot
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/screenshot_$timestamp.png');
+        await file.writeAsBytes(pngBytes);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Screenshot saved: ${file.path}'),
+              action: SnackBarAction(
+                label: 'Open Folder',
+                onPressed: () => _openScreenshotFolder(file.path),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("Error capturing screenshot: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to capture screenshot')),
+        );
+      }
+    }
+
+    // Resume video if it was playing
+    if (wasPlaying) {
+      await _controller!.play();
+    }
+  }
+
+  Future<void> _openScreenshotFolder(String path) async {
+    try {
+      final Uri uri;
+      if (Platform.isWindows) {
+        uri = Uri.parse('file:///${path.replaceAll('\\', '/').replaceAll('//', '/')}');
+      } else if (Platform.isMacOS) {
+        uri = Uri.parse('file://$path');
+      } else if (Platform.isLinux) {
+        // For Linux, we'll open the parent directory
+        final directory = Directory(path).parent.path;
+        uri = Uri.parse('file://$directory');
+      } else {
+        // For other platforms, show a message that this feature isn't supported
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Opening folders is not supported on this platform')),
+          );
+        }
+        return;
+      }
+
+      if (!await launchUrl(uri)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open folder')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error opening folder: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening folder: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -493,953 +594,835 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
           ],
         ),
         centerTitle: true,
-        actions: [], // Remove the actions from here
+        actions: [
+          // Add screenshot button to AppBar
+          if (_controller != null && _controller!.value.isInitialized)
+            IconButton(
+              icon: Icon(Icons.camera_alt, color: Colors.white),
+              onPressed: _captureScreenshot,
+              tooltip: 'Take Screenshot',
+            ),
+        ],
       ),
-      body: _controller == null || !_controller!.value.isInitialized || _showAnimation
-          ? Container(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/background.jpg'),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.75),
-                    BlendMode.darken,
-                  ),
+      body: RepaintBoundary(
+        key: _screenshotKey,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: _isFullScreen
+                  ? VideoPlayer(_controller!)
+                  : Center(
+                      child: AspectRatio(
+                        aspectRatio: _controller!.value.aspectRatio,
+                        child: VideoPlayer(_controller!),
+                      ),
+                    ),
+            ),
+
+            // Add Mask Layer
+            if (_isMaskMode)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: MaskPainter([if (_maskShape != null) _maskShape!], currentShape: _currentShape),
+                  child: Container(),
                 ),
               ),
-              child: SafeArea(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+
+            // Drawing/Annotation Overlay
+            GestureDetector(
+              onPanStart: (details) {
+                if (_selectedShape == ShapeType.protractor) {
+                  final position = details.localPosition;
+                  // Check if we're clicking on an existing protractor
+                  for (var shape in _shapes) {
+                    if (shape.shapeType == ShapeType.protractor) {
+                      final center = shape.points.first;
+                      final radius = (shape.points.first - shape.points.last).distance;
+                      final distanceFromCenter = (position - center).distance;
+                      
+                      // Check if we're near the edge (for resizing)
+                      if ((distanceFromCenter - radius).abs() < 20) {
+                        setState(() {
+                          _isResizingProtractor = true;
+                          _selectedProtractor = shape;
+                          _currentShape = shape;
+                        });
+                        return;
+                      }
+                      
+                      // Check if we're inside the protractor (for moving)
+                      if (distanceFromCenter < radius) {
+                        setState(() {
+                          _isMovingShape = true;
+                          _movingShape = shape;
+                          _lastPosition = position;
+                        });
+                        return;
+                      }
+                    }
+                  }
+                  
+                  // Create new protractor if not interacting with existing one
+                  setState(() {
+                    _currentShape = Shape(
+                      points: [position, position],
+                      color: _selectedColor,
+                      strokeWidth: _strokeWidth,
+                      shapeType: ShapeType.protractor,
+                    );
+                  });
+                  return;
+                }
+                if (_isMaskMode) {
+                  final position = details.localPosition;
+                  // If we already have a mask, check if we're clicking near its edge
+                  if (_maskShape != null) {
+                    final center = _maskShape!.points.first;
+                    final radius = (_maskShape!.points.first - _maskShape!.points.last).distance;
+                    final distanceFromCenter = (position - center).distance;
+                    
+                    // Check if we're near the edge (for resizing)
+                    if ((distanceFromCenter - radius).abs() < 20) {
+                      setState(() {
+                        _isResizingMask = true;
+                        _currentShape = _maskShape;
+                      });
+                      return;
+                    }
+                    
+                    // Check if we're inside the circle (for moving)
+                    if (distanceFromCenter < radius) {
+                      setState(() {
+                        _isMovingShape = true;
+                        _movingShape = _maskShape;
+                        _lastPosition = position;
+                      });
+                      return;
+                    }
+                  }
+                  
+                  // Create new mask only if we don't have one
+                  if (_maskShape == null) {
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [position, position],
+                        color: Colors.transparent,
+                        strokeWidth: 1,
+                        shapeType: ShapeType.circle,
+                        isMask: true,
+                      );
+                    });
+                  }
+                  return;
+                }
+                final position = details.localPosition;
+                // Check if we're clicking on an existing shape
+                for (var shape in _shapes) {
+                  if (shape.containsPoint(position)) {
+                    setState(() {
+                      _isMovingShape = true;
+                      _movingShape = shape;
+                      _lastPosition = position;
+                      // Deselect other shapes
+                      for (var s in _shapes) {
+                        s.isSelected = false;
+                      }
+                      shape.isSelected = true;
+                    });
+                    return;
+                  }
+                }
+                
+                // If not clicking on a shape, start drawing a new one
+                setState(() {
+                  for (var s in _shapes) {
+                    s.isSelected = false;
+                  }
+                  _currentShape = Shape(
+                    points: [position],
+                    color: _selectedColor,
+                    strokeWidth: _strokeWidth,
+                    shapeType: _selectedShape,
+                  );
+                });
+              },
+              onPanUpdate: (details) {
+                if (_selectedShape == ShapeType.protractor) {
+                  final position = details.localPosition;
+                  if (_isResizingProtractor && _selectedProtractor != null) {
+                    setState(() {
+                      _selectedProtractor!.points[1] = position; // Update radius
+                    });
+                    return;
+                  }
+                  if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                    setState(() {
+                      final delta = position - _lastPosition!;
+                      _movingShape!.move(delta);
+                      _lastPosition = position;
+                    });
+                    return;
+                  }
+                  if (_currentShape != null) {
+                    setState(() {
+                      _currentShape!.points[1] = position;
+                    });
+                  }
+                  return;
+                }
+                if (_isMaskMode) {
+                  final position = details.localPosition;
+                  if (_isResizingMask && _currentShape != null) {
+                    setState(() {
+                      _currentShape!.points[1] = position; // Update radius
+                      _maskShape = _currentShape;
+                    });
+                    return;
+                  }
+                  if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                    setState(() {
+                      final delta = position - _lastPosition!;
+                      _movingShape!.move(delta);
+                      _lastPosition = position;
+                      _maskShape = _movingShape;
+                    });
+                    return;
+                  }
+                  if (_currentShape != null) {
+                    setState(() {
+                      _currentShape!.points[1] = position; // Update radius while creating
+                    });
+                  }
+                  return;
+                }
+                final position = details.localPosition;
+                if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                  setState(() {
+                    final delta = position - _lastPosition!;
+                    _movingShape!.move(delta);
+                    _lastPosition = position;
+                  });
+                } else if (_currentShape != null) {
+                  setState(() {
+                    if (_selectedShape == ShapeType.angle) {
+                      if (_currentShape!.points.length < 3) {
+                        _currentShape!.points.add(position);
+                      }
+                    } else {
+                      _currentShape?.points.add(position);
+                    }
+                  });
+                }
+              },
+              onPanEnd: (details) {
+                if (_selectedShape == ShapeType.protractor) {
+                  if (_isResizingProtractor) {
+                    setState(() {
+                      _isResizingProtractor = false;
+                      _selectedProtractor = null;
+                      _currentShape = null;
+                    });
+                    return;
+                  }
+                  if (_isMovingShape) {
+                    setState(() {
+                      _isMovingShape = false;
+                      _movingShape = null;
+                      _lastPosition = null;
+                    });
+                    return;
+                  }
+                  if (_currentShape != null) {
+                    setState(() {
+                      _shapes.add(_currentShape!);
+                      _currentShape = null;
+                      _undoStack.clear();
+                    });
+                  }
+                  return;
+                }
+                if (_isMaskMode) {
+                  if (_isResizingMask) {
+                    setState(() {
+                      _isResizingMask = false;
+                      _currentShape = null;
+                    });
+                    return;
+                  }
+                  if (_isMovingShape) {
+                    setState(() {
+                      _isMovingShape = false;
+                      _movingShape = null;
+                      _lastPosition = null;
+                    });
+                    return;
+                  }
+                  if (_currentShape != null) {
+                    setState(() {
+                      _maskShape = _currentShape;
+                      _currentShape = null;
+                    });
+                  }
+                  return;
+                }
+                if (_isMovingShape) {
+                  setState(() {
+                    _isMovingShape = false;
+                    _movingShape = null;
+                    _lastPosition = null;
+                  });
+                } else if (_currentShape != null) {
+                  setState(() {
+                    _shapes.add(_currentShape!);
+                    _currentShape = null;
+                    _undoStack.clear();
+                  });
+                }
+              },
+              child: MouseRegion(
+                cursor: _isMaskMode ? SystemMouseCursors.click : MouseCursor.defer,
+                child: CustomPaint(
+                  painter: DrawingPainter(
+                    _shapes,
+                    _currentShape,
+                    _calculateAngle,
+                  ),
+                  child: Container(),
+                ),
+              ),
+            ),
+
+            // Horizontal Volume Slider (Appears Beside Sidebar)
+            if (_isVolumeSliderVisible)
+              Positioned(
+                top: 305, // Align with the speaker icon
+                left: 50, // Place beside the sidebar
+                child: Container(
+                  width: 300, // Adjust slider width
+                  height: 40,
+                  color: Colors.black.withOpacity(0.5), // Background for slider
+                  child: Row(
                     children: [
-                      // Animated Text
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.0),
-                        child: TweenAnimationBuilder(
-                          duration: Duration(seconds: 3),
-                          tween: Tween<double>(begin: 0.0, end: 1.0),
-                          builder: (context, double value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: Text(
-                                    'Swimming Video Analysis Made Easy',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                      Expanded(
+                        child: Slider(
+                          value: _volume,
+                          min: 0.0,
+                          max: 1.0,
+                          onChanged: _setVolume,
+                          activeColor: Colors.red,
+                          inactiveColor: Colors.grey,
                         ),
                       ),
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.03),
-                      // Animated Logo
-                      Tooltip(
-                        message: 'Click to open a video file',
-                        child: GestureDetector(
-                          onTap: _pickVideo,
-                          child: TweenAnimationBuilder(
-                            duration: Duration(seconds: 2),
-                            tween: Tween<double>(begin: 0.0, end: 1.0),
-                            builder: (context, double value, child) {
-                              final screenSize = MediaQuery.of(context).size;
-                              final logoSize = math.min(
-                                screenSize.width * 0.4,
-                                screenSize.height * 0.4
-                              );
-                              
-                              return Transform.scale(
-                                scale: value,
-                                child: Opacity(
-                                  opacity: value,
-                                  child: MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.5),
-                                          width: 2,
-                                          strokeAlign: BorderSide.strokeAlignOutside,
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: CustomPaint(
-                                        foregroundPainter: DottedBorderPainter(),
-                                        child: Padding(
-                                          padding: EdgeInsets.all(16),
-                                          child: Image.asset(
-                                            'assets/splash.png',
-                                            width: logoSize,
-                                            height: logoSize,
-                                            fit: BoxFit.contain,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      // Add TI dedication text
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.03),
-                      TweenAnimationBuilder(
-                        duration: Duration(seconds: 2),
-                        tween: Tween<double>(begin: 0.0, end: 1.0),
-                        builder: (context, double value, child) {
-                          return Opacity(
-                            opacity: value,
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(text: 'with love to '),
-                                  TextSpan(
-                                    text: 'Total Immersion',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  TextSpan(text: ' Swimming'),
-                                ],
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          );
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () {
+                          setState(() {
+                            _isVolumeSliderVisible = false; // Close slider
+                          });
                         },
                       ),
                     ],
                   ),
                 ),
               ),
-            )
-          : Stack(
-              children: [
-                Positioned.fill(
-                  child: _isFullScreen
-                      ? VideoPlayer(_controller!)
-                      : Center(
-                          child: AspectRatio(
-                            aspectRatio: _controller!.value.aspectRatio,
-                            child: VideoPlayer(_controller!),
-                          ),
-                        ),
+
+            // Tools Bar (Now horizontal, positioned above bottom toolbar)
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 50,
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
                 ),
-
-                // Add Mask Layer
-                if (_isMaskMode)
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: MaskPainter([if (_maskShape != null) _maskShape!], currentShape: _currentShape),
-                      child: Container(),
-                    ),
-                  ),
-
-                // Drawing/Annotation Overlay
-                GestureDetector(
-                  onPanStart: (details) {
-                    if (_selectedShape == ShapeType.protractor) {
-                      final position = details.localPosition;
-                      // Check if we're clicking on an existing protractor
-                      for (var shape in _shapes) {
-                        if (shape.shapeType == ShapeType.protractor) {
-                          final center = shape.points.first;
-                          final radius = (shape.points.first - shape.points.last).distance;
-                          final distanceFromCenter = (position - center).distance;
-                          
-                          // Check if we're near the edge (for resizing)
-                          if ((distanceFromCenter - radius).abs() < 20) {
-                            setState(() {
-                              _isResizingProtractor = true;
-                              _selectedProtractor = shape;
-                              _currentShape = shape;
-                            });
-                            return;
-                          }
-                          
-                          // Check if we're inside the protractor (for moving)
-                          if (distanceFromCenter < radius) {
-                            setState(() {
-                              _isMovingShape = true;
-                              _movingShape = shape;
-                              _lastPosition = position;
-                            });
-                            return;
-                          }
-                        }
-                      }
-                      
-                      // Create new protractor if not interacting with existing one
-                      setState(() {
-                        _currentShape = Shape(
-                          points: [position, position],
-                          color: _selectedColor,
-                          strokeWidth: _strokeWidth,
-                          shapeType: ShapeType.protractor,
-                        );
-                      });
-                      return;
-                    }
-                    if (_isMaskMode) {
-                      final position = details.localPosition;
-                      // If we already have a mask, check if we're clicking near its edge
-                      if (_maskShape != null) {
-                        final center = _maskShape!.points.first;
-                        final radius = (_maskShape!.points.first - _maskShape!.points.last).distance;
-                        final distanceFromCenter = (position - center).distance;
-                        
-                        // Check if we're near the edge (for resizing)
-                        if ((distanceFromCenter - radius).abs() < 20) {
-                          setState(() {
-                            _isResizingMask = true;
-                            _currentShape = _maskShape;
-                          });
-                          return;
-                        }
-                        
-                        // Check if we're inside the circle (for moving)
-                        if (distanceFromCenter < radius) {
-                          setState(() {
-                            _isMovingShape = true;
-                            _movingShape = _maskShape;
-                            _lastPosition = position;
-                          });
-                          return;
-                        }
-                      }
-                      
-                      // Create new mask only if we don't have one
-                      if (_maskShape == null) {
-                        setState(() {
-                          _currentShape = Shape(
-                            points: [position, position],
-                            color: Colors.transparent,
-                            strokeWidth: 1,
-                            shapeType: ShapeType.circle,
-                            isMask: true,
-                          );
-                        });
-                      }
-                      return;
-                    }
-                    final position = details.localPosition;
-                    // Check if we're clicking on an existing shape
-                    for (var shape in _shapes) {
-                      if (shape.containsPoint(position)) {
-                        setState(() {
-                          _isMovingShape = true;
-                          _movingShape = shape;
-                          _lastPosition = position;
-                          // Deselect other shapes
-                          for (var s in _shapes) {
-                            s.isSelected = false;
-                          }
-                          shape.isSelected = true;
-                        });
-                        return;
-                      }
-                    }
-                    
-                    // If not clicking on a shape, start drawing a new one
-                    setState(() {
-                      for (var s in _shapes) {
-                        s.isSelected = false;
-                      }
-                      _currentShape = Shape(
-                        points: [position],
-                        color: _selectedColor,
-                        strokeWidth: _strokeWidth,
-                        shapeType: _selectedShape,
-                      );
-                    });
-                  },
-                  onPanUpdate: (details) {
-                    if (_selectedShape == ShapeType.protractor) {
-                      final position = details.localPosition;
-                      if (_isResizingProtractor && _selectedProtractor != null) {
-                        setState(() {
-                          _selectedProtractor!.points[1] = position; // Update radius
-                        });
-                        return;
-                      }
-                      if (_isMovingShape && _movingShape != null && _lastPosition != null) {
-                        setState(() {
-                          final delta = position - _lastPosition!;
-                          _movingShape!.move(delta);
-                          _lastPosition = position;
-                        });
-                        return;
-                      }
-                      if (_currentShape != null) {
-                        setState(() {
-                          _currentShape!.points[1] = position;
-                        });
-                      }
-                      return;
-                    }
-                    if (_isMaskMode) {
-                      final position = details.localPosition;
-                      if (_isResizingMask && _currentShape != null) {
-                        setState(() {
-                          _currentShape!.points[1] = position; // Update radius
-                          _maskShape = _currentShape;
-                        });
-                        return;
-                      }
-                      if (_isMovingShape && _movingShape != null && _lastPosition != null) {
-                        setState(() {
-                          final delta = position - _lastPosition!;
-                          _movingShape!.move(delta);
-                          _lastPosition = position;
-                          _maskShape = _movingShape;
-                        });
-                        return;
-                      }
-                      if (_currentShape != null) {
-                        setState(() {
-                          _currentShape!.points[1] = position; // Update radius while creating
-                        });
-                      }
-                      return;
-                    }
-                    final position = details.localPosition;
-                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
-                      setState(() {
-                        final delta = position - _lastPosition!;
-                        _movingShape!.move(delta);
-                        _lastPosition = position;
-                      });
-                    } else if (_currentShape != null) {
-                      setState(() {
-                        if (_selectedShape == ShapeType.angle) {
-                          if (_currentShape!.points.length < 3) {
-                            _currentShape!.points.add(position);
-                          }
-                        } else {
-                          _currentShape?.points.add(position);
-                        }
-                      });
-                    }
-                  },
-                  onPanEnd: (details) {
-                    if (_selectedShape == ShapeType.protractor) {
-                      if (_isResizingProtractor) {
-                        setState(() {
-                          _isResizingProtractor = false;
-                          _selectedProtractor = null;
-                          _currentShape = null;
-                        });
-                        return;
-                      }
-                      if (_isMovingShape) {
-                        setState(() {
-                          _isMovingShape = false;
-                          _movingShape = null;
-                          _lastPosition = null;
-                        });
-                        return;
-                      }
-                      if (_currentShape != null) {
-                        setState(() {
-                          _shapes.add(_currentShape!);
-                          _currentShape = null;
-                          _undoStack.clear();
-                        });
-                      }
-                      return;
-                    }
-                    if (_isMaskMode) {
-                      if (_isResizingMask) {
-                        setState(() {
-                          _isResizingMask = false;
-                          _currentShape = null;
-                        });
-                        return;
-                      }
-                      if (_isMovingShape) {
-                        setState(() {
-                          _isMovingShape = false;
-                          _movingShape = null;
-                          _lastPosition = null;
-                        });
-                        return;
-                      }
-                      if (_currentShape != null) {
-                        setState(() {
-                          _maskShape = _currentShape;
-                          _currentShape = null;
-                        });
-                      }
-                      return;
-                    }
-                    if (_isMovingShape) {
-                      setState(() {
-                        _isMovingShape = false;
-                        _movingShape = null;
-                        _lastPosition = null;
-                      });
-                    } else if (_currentShape != null) {
-                      setState(() {
-                        _shapes.add(_currentShape!);
-                        _currentShape = null;
-                        _undoStack.clear();
-                      });
-                    }
-                  },
-                  child: MouseRegion(
-                    cursor: _isMaskMode ? SystemMouseCursors.click : MouseCursor.defer,
-                    child: CustomPaint(
-                      painter: DrawingPainter(
-                        _shapes,
-                        _currentShape,
-                        _calculateAngle,
-                      ),
-                      child: Container(),
-                    ),
-                  ),
-                ),
-
-                // Horizontal Volume Slider (Appears Beside Sidebar)
-                if (_isVolumeSliderVisible)
-                  Positioned(
-                    top: 305, // Align with the speaker icon
-                    left: 50, // Place beside the sidebar
-                    child: Container(
-                      width: 300, // Adjust slider width
-                      height: 40,
-                      color: Colors.black.withOpacity(0.5), // Background for slider
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Slider(
-                              value: _volume,
-                              min: 0.0,
-                              max: 1.0,
-                              onChanged: _setVolume,
-                              activeColor: Colors.red,
-                              inactiveColor: Colors.grey,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: MediaQuery.of(context).size.width,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.restart_alt, 
+                                color: _shapes.isEmpty ? Colors.grey : Colors.white
+                              ),
+                              onPressed: _shapes.isEmpty ? null : _resetAppState,
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.close, color: Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                _isVolumeSliderVisible = false; // Close slider
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-         
-                // Tools Bar (Now horizontal, positioned above bottom toolbar)
-                Positioned(
-                  bottom: 80,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 50,
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: MediaQuery.of(context).size.width,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.restart_alt, 
-                                    color: _shapes.isEmpty ? Colors.grey : Colors.white
-                                  ),
-                                  onPressed: _shapes.isEmpty ? null : _resetAppState,
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.undo, 
-                                    color: _shapes.isEmpty ? Colors.grey : Colors.white
-                                  ),
-                                  onPressed: _shapes.isEmpty ? null : _undo,
-                                  tooltip: 'Undo',
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.redo, 
-                                    color: _undoStack.isEmpty ? Colors.grey : Colors.white
-                                  ),
-                                  onPressed: _undoStack.isEmpty ? null : _redo,
-                                  tooltip: 'Redo',
-                                ),
-                                VerticalDivider(
-                                  color: Colors.grey,
-                                  thickness: 1,
-                                  indent: 8,
-                                  endIndent: 8,
-                                  width: 20,
-                                ),
-                                IconButton(
-                                  icon:
-                                      Icon(Icons.color_lens, color: Colors.yellow[500]),
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          title: Text('Pick a color'),
-                                          content: BlockPicker(
-                                            pickerColor: _selectedColor,
-                                            onColorChanged: _changeColor,
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              child: Text('Done'),
-                                              onPressed: () => Navigator.pop(context),
-                                            ),
-                                          ],
-                                        );
-                                      },
+                            IconButton(
+                              icon: Icon(
+                                Icons.undo, 
+                                color: _shapes.isEmpty ? Colors.grey : Colors.white
+                              ),
+                              onPressed: _shapes.isEmpty ? null : _undo,
+                              tooltip: 'Undo',
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.redo, 
+                                color: _undoStack.isEmpty ? Colors.grey : Colors.white
+                              ),
+                              onPressed: _undoStack.isEmpty ? null : _redo,
+                              tooltip: 'Redo',
+                            ),
+                            VerticalDivider(
+                              color: Colors.grey,
+                              thickness: 1,
+                              indent: 8,
+                              endIndent: 8,
+                              width: 20,
+                            ),
+                            IconButton(
+                              icon:
+                                  Icon(Icons.color_lens, color: Colors.yellow[500]),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return AlertDialog(
+                                      title: Text('Pick a color'),
+                                      content: BlockPicker(
+                                        pickerColor: _selectedColor,
+                                        onColorChanged: _changeColor,
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          child: Text('Done'),
+                                          onPressed: () => Navigator.pop(context),
+                                        ),
+                                      ],
                                     );
                                   },
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                  color: _selectedShape == ShapeType.line
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                  icon: Icon(Icons.line_axis,
-                                    color: Colors.green[500]),
-                                  onPressed: () => _selectShape(ShapeType.line),
-                                  tooltip: 'Line',
-                                  ),
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                  color: _selectedShape == ShapeType.curve
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                  icon: SvgPicture.asset(
-                                    'assets/line_curve.svg', // Ensure you have the SVG file in your assets
-                                    color: Colors.purple[300], // Set the color of the SVG icon
-                                    width: 24,
-                                    height: 24,
-                                  ),
-                                  onPressed: () => _selectShape(ShapeType.curve),
-                                  tooltip: 'Curve',
-                                  ),
-                                ),
-                                  
-                                Container(
-                                  decoration: BoxDecoration(
-                                  color: _selectedShape == ShapeType.arrow
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                  icon: Icon(Icons.arrow_back,
-                                    color: Colors.white),
-                                  onPressed: () => _selectShape(ShapeType.arrow),
-                                  tooltip: 'Arrow',
-                                  ),
-                                ),
-
-                                Container(
-                                  decoration: BoxDecoration(
-                                  color: _selectedShape == ShapeType.rectangle
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                  icon: Icon(Icons.crop_square,
-                                    color: Colors.red[200]),
-                                  onPressed: () => _selectShape(ShapeType.rectangle),
-                                  tooltip: 'Rectangle',
-                                  ),
-                                ),
-                                
-                                Container(
-                                  decoration: BoxDecoration(
-                                  color: _selectedShape == ShapeType.circle
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                  icon: Icon(Icons.circle_outlined, color: Colors.orange[500]),
-                                  onPressed: () => _selectShape(ShapeType.circle),
-                                  tooltip: 'Circle',
-                                  ),
-                                ),
-
-                                Container(
-                                  decoration: BoxDecoration(
-                                  color: _selectedShape == ShapeType.triangle
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                  shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                  icon: Icon(Icons.change_history,
-                                    color: Colors.blue[500]),
-                                  onPressed: () => _selectShape(ShapeType.triangle),
-                                  tooltip: 'Triangle',
-                                  ),
-                                ),
-
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: _selectedShape == ShapeType.protractor
-                                      ? Colors.black.withOpacity(0.5)
-                                      : Colors.transparent,
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(Icons.architecture, // Using architecture icon for protractor
-                                      color: Colors.blue[200]),
-                                    onPressed: () => _selectShape(ShapeType.protractor),
-                                    tooltip: 'Protractor',
-                                  ),
-                                ),
-
-                                VerticalDivider(
-                                  color: Colors.grey,
-                                  thickness: 1,
-                                  indent: 8,
-                                  endIndent: 8,
-                                  width: 20,
-                                ),
-                                
-                                // Add Mask Toggle button to the right toolbar
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: _isMaskMode
-                                        ? Colors.black.withOpacity(0.5)
-                                        : Colors.transparent,
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(
-                                      Icons.flashlight_on,
-                                      color: _isMaskMode ? Colors.yellow : Colors.white,
-                                    ),
-                                    onPressed: _toggleMaskMode,
-                                    tooltip: 'Toggle Mask Mode',
-                                  ),
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: _isStrokeWidthSliderVisible
-                                      ? Colors.black.withOpacity(0.5)
-                                      : Colors.transparent,
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  child: IconButton(
-                                    key: _strokeWidthIconKey,
-                                    icon: Icon(Icons.line_weight, color: Colors.white),
-                                    onPressed: () {
-                                      final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
-                                      final position = renderBox.localToGlobal(Offset.zero);
-                                      setState(() {
-                                        _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
-                                        _strokeWidthPosition = position;
-                                      });
-                                    },
-                                    tooltip: 'Adjust Stroke Width',
-                                  ),
-                                ),
-                              
-                              ],
+                                );
+                              },
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Stroke Width Slider
-                if (_isStrokeWidthSliderVisible && _strokeWidthPosition != null)
-                  Positioned(
-                    left: _strokeWidthPosition!.dx - 0, // Center on the icon
-                    bottom: MediaQuery.of(context).size.height - _strokeWidthPosition!.dy,
-                    child: Container(
-                      width: 40,
-                      height: 200,
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          topRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.close, color: Colors.white, size: 20),
-                            onPressed: () {
-                              setState(() {
-                                _isStrokeWidthSliderVisible = false;
-                              });
-                            },
-                          ),
-                          Expanded(
-                            child: RotatedBox(
-                              quarterTurns: 3,
-                              child: Slider(
-                                value: _strokeWidth,
-                                min: 1.0,
-                                max: 30.0,
-                                onChanged: _changeStrokeWidth,
-                                activeColor: _selectedColor,
-                                inactiveColor: Colors.grey,
+                            Container(
+                              decoration: BoxDecoration(
+                              color: _selectedShape == ShapeType.line
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                              shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                              icon: Icon(Icons.line_axis,
+                                color: Colors.green[500]),
+                              onPressed: () => _selectShape(ShapeType.line),
+                              tooltip: 'Line',
                               ),
                             ),
-                          ),
-                          Text(
-                            _strokeWidth.toStringAsFixed(1),
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-                  ),
+                            Container(
+                              decoration: BoxDecoration(
+                              color: _selectedShape == ShapeType.curve
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                              shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                              icon: SvgPicture.asset(
+                                'assets/line_curve.svg', // Ensure you have the SVG file in your assets
+                                color: Colors.purple[300], // Set the color of the SVG icon
+                                width: 24,
+                                height: 24,
+                              ),
+                              onPressed: () => _selectShape(ShapeType.curve),
+                              tooltip: 'Curve',
+                              ),
+                            ),
+                              
+                            Container(
+                              decoration: BoxDecoration(
+                              color: _selectedShape == ShapeType.arrow
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                              shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                              icon: Icon(Icons.arrow_back,
+                                color: Colors.white),
+                              onPressed: () => _selectShape(ShapeType.arrow),
+                              tooltip: 'Arrow',
+                              ),
+                            ),
 
-            
-                // Bottom Toolbar for Playback Controls
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    color: Colors.black.withOpacity(0.7),
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Progress bar
-                        SliderTheme(
-                          data: SliderThemeData(
-                            trackHeight: 2,
-                            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                            overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                            activeTrackColor: Colors.white,
-                            inactiveTrackColor: Colors.white.withOpacity(0.3),
-                            thumbColor: Colors.white,
-                            overlayColor: Colors.white.withOpacity(0.3),
-                          ),
-                          child: Slider(
-                            value: _controller!.value.position.inMilliseconds.toDouble(),
-                            min: 0,
-                            max: _controller!.value.duration.inMilliseconds.toDouble(),
-                            onChanged: (value) {
-                              _controller!.seekTo(Duration(milliseconds: value.toInt()));
-                            },
-                          ),
-                        ),
-                        
-                        // Modified Controls row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Left side controls with added skip buttons
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.skip_previous, color: Colors.white),
-                                  onPressed: () => _controller!.seekTo(Duration.zero),
-                                  tooltip: 'Start',
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.arrow_back, color: Colors.white),
-                                  onPressed: () {
-                                    _rewind();
-                                  },
-                                  tooltip: 'Rewind',
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
-                                  onPressed: _togglePlayPause,
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.arrow_forward, color: Colors.white),
-                                  onPressed: () {
-                                    _forward();
-                                  },
-                                  tooltip: 'Forward',
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.skip_next, color: Colors.white),
-                                  onPressed: () => _controller!.seekTo(_controller!.value.duration),
-                                  tooltip: 'End',
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    _volume == 0 ? Icons.volume_off : Icons.volume_up,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: _toggleMute,
-                                ),
-                                SizedBox(
-                                  width: 100,
-                                  child: SliderTheme(
-                                    data: SliderThemeData(
-                                      trackHeight: 2,
-                                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                                      overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                                      activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                      thumbColor: Colors.white,
-                                    ),
-                                    child: Slider(
-                                      value: _volume,
-                                      min: 0,
-                                      max: 1,
-                                      onChanged: _setVolume,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.speed,
-                                        color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
-                                      ),
-                                      if (!_isPlaybackSpeedEnabled)
-                                        Transform.rotate(
-                                          angle: -pi / 4,
-                                          child: Container(
-                                            width: 24,
-                                            height: 2,
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  onPressed: _togglePlaybackSpeed,
-                                  tooltip: 'Toggle Playback Speed',
-                                ),
-                                Container(
-                                  width: 150,
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 100,
-                                        child: SliderTheme(
-                                          data: SliderThemeData(
-                                            trackHeight: 2,
-                                            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                                            overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                                            activeTrackColor: Colors.white,
-                                            inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                            thumbColor: Colors.white,
-                                          ),
-                                          child: Slider(
-                                            value: _playbackSpeed,
-                                            min: _speedOptions.first,
-                                            max: _speedOptions.last,
-                                            onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        '${_playbackSpeed.toStringAsFixed(2)}x',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            Container(
+                              decoration: BoxDecoration(
+                              color: _selectedShape == ShapeType.rectangle
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                              shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                              icon: Icon(Icons.crop_square,
+                                color: Colors.red[200]),
+                              onPressed: () => _selectShape(ShapeType.rectangle),
+                              tooltip: 'Rectangle',
+                              ),
                             ),
                             
-                            // Right side controls remain the same
-                            Row(
-                              children: [
-                                Text(
-                                  '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
-                                  style: TextStyle(color: Colors.white),
+                            Container(
+                              decoration: BoxDecoration(
+                              color: _selectedShape == ShapeType.circle
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                              shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                              icon: Icon(Icons.circle_outlined, color: Colors.orange[500]),
+                              onPressed: () => _selectShape(ShapeType.circle),
+                              tooltip: 'Circle',
+                              ),
+                            ),
+
+                            Container(
+                              decoration: BoxDecoration(
+                              color: _selectedShape == ShapeType.triangle
+                                ? Colors.black.withOpacity(0.5)
+                                : Colors.transparent,
+                              shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                              icon: Icon(Icons.change_history,
+                                color: Colors.blue[500]),
+                              onPressed: () => _selectShape(ShapeType.triangle),
+                              tooltip: 'Triangle',
+                              ),
+                            ),
+
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _selectedShape == ShapeType.protractor
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.architecture, // Using architecture icon for protractor
+                                  color: Colors.blue[200]),
+                                onPressed: () => _selectShape(ShapeType.protractor),
+                                tooltip: 'Protractor',
+                              ),
+                            ),
+
+                            VerticalDivider(
+                              color: Colors.grey,
+                              thickness: 1,
+                              indent: 8,
+                              endIndent: 8,
+                              width: 20,
+                            ),
+                            
+                            // Add Mask Toggle button to the right toolbar
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.flashlight_on,
+                                  color: _isMaskMode ? Colors.yellow : Colors.white,
                                 ),
-                                SizedBox(width: 16),
-                                IconButton(
-                                  icon: Icon(Icons.settings, color: Colors.white),
-                                  onPressed: () {
-                                    // Add settings menu functionality
-                                  },
+                                onPressed: _toggleMaskMode,
+                                tooltip: 'Toggle Mask Mode',
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _isStrokeWidthSliderVisible
+                                  ? Colors.black.withOpacity(0.5)
+                                  : Colors.transparent,
+                                shape: BoxShape.rectangle,
+                              ),
+                              child: IconButton(
+                                key: _strokeWidthIconKey,
+                                icon: Icon(Icons.line_weight, color: Colors.white),
+                                onPressed: () {
+                                  final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
+                                  final position = renderBox.localToGlobal(Offset.zero);
+                                  setState(() {
+                                    _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
+                                    _strokeWidthPosition = position;
+                                  });
+                                },
+                                tooltip: 'Adjust Stroke Width',
+                              ),
+                            ),
+                          
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Stroke Width Slider
+            if (_isStrokeWidthSliderVisible && _strokeWidthPosition != null)
+              Positioned(
+                left: _strokeWidthPosition!.dx - 0, // Center on the icon
+                bottom: MediaQuery.of(context).size.height - _strokeWidthPosition!.dy,
+                child: Container(
+                  width: 40,
+                  height: 200,
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white, size: 20),
+                        onPressed: () {
+                          setState(() {
+                            _isStrokeWidthSliderVisible = false;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: RotatedBox(
+                          quarterTurns: 3,
+                          child: Slider(
+                            value: _strokeWidth,
+                            min: 1.0,
+                            max: 30.0,
+                            onChanged: _changeStrokeWidth,
+                            activeColor: _selectedColor,
+                            inactiveColor: Colors.grey,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _strokeWidth.toStringAsFixed(1),
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+
+
+            // Bottom Toolbar for Playback Controls
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black.withOpacity(0.7),
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Progress bar
+                    SliderTheme(
+                      data: SliderThemeData(
+                        trackHeight: 2,
+                        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                        overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                        activeTrackColor: Colors.white,
+                        inactiveTrackColor: Colors.white.withOpacity(0.3),
+                        thumbColor: Colors.white,
+                        overlayColor: Colors.white.withOpacity(0.3),
+                      ),
+                      child: Slider(
+                        value: _controller!.value.position.inMilliseconds.toDouble(),
+                        min: 0,
+                        max: _controller!.value.duration.inMilliseconds.toDouble(),
+                        onChanged: (value) {
+                          _controller!.seekTo(Duration(milliseconds: value.toInt()));
+                        },
+                      ),
+                    ),
+                    
+                    // Modified Controls row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left side controls with added skip buttons
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.skip_previous, color: Colors.white),
+                              onPressed: () => _controller!.seekTo(Duration.zero),
+                              tooltip: 'Start',
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.arrow_back, color: Colors.white),
+                              onPressed: () {
+                                _rewind();
+                              },
+                              tooltip: 'Rewind',
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: _togglePlayPause,
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.arrow_forward, color: Colors.white),
+                              onPressed: () {
+                                _forward();
+                              },
+                              tooltip: 'Forward',
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.skip_next, color: Colors.white),
+                              onPressed: () => _controller!.seekTo(_controller!.value.duration),
+                              tooltip: 'End',
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                _volume == 0 ? Icons.volume_off : Icons.volume_up,
+                                color: Colors.white,
+                              ),
+                              onPressed: _toggleMute,
+                            ),
+                            SizedBox(
+                              width: 100,
+                              child: SliderTheme(
+                                data: SliderThemeData(
+                                  trackHeight: 2,
+                                  thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                  overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                  activeTrackColor: Colors.white,
+                                  inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                  thumbColor: Colors.white,
                                 ),
-                                IconButton(
-                                  icon: Icon(
-                                    _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                                    color: Colors.white,
+                                child: Slider(
+                                  value: _volume,
+                                  min: 0,
+                                  max: 1,
+                                  onChanged: _setVolume,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.speed,
+                                    color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
                                   ),
-                                  onPressed: _toggleFullScreen,
-                                ),
-                              ],
+                                  if (!_isPlaybackSpeedEnabled)
+                                    Transform.rotate(
+                                      angle: -pi / 4,
+                                      child: Container(
+                                        width: 24,
+                                        height: 2,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              onPressed: _togglePlaybackSpeed,
+                              tooltip: 'Toggle Playback Speed',
+                            ),
+                            Container(
+                              width: 150,
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 100,
+                                    child: SliderTheme(
+                                      data: SliderThemeData(
+                                        trackHeight: 2,
+                                        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                        overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                        activeTrackColor: Colors.white,
+                                        inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                        thumbColor: Colors.white,
+                                      ),
+                                      child: Slider(
+                                        value: _playbackSpeed,
+                                        min: _speedOptions.first,
+                                        max: _speedOptions.last,
+                                        onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_playbackSpeed.toStringAsFixed(2)}x',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        // Right side controls remain the same
+                        Row(
+                          children: [
+                            Text(
+                              '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            SizedBox(width: 16),
+                            IconButton(
+                              icon: Icon(Icons.settings, color: Colors.white),
+                              onPressed: () {
+                                // Add settings menu functionality
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                color: Colors.white,
+                              ),
+                              onPressed: _toggleFullScreen,
                             ),
                           ],
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
+              ),
+            ),
 
-                if (!_controller!.value.isPlaying && _shapes.isEmpty && _currentShape == null)
-                  Positioned.fill(
-                    child: Center(
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: _togglePlayPause,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              shape: BoxShape.circle,
-                            ),
-                            padding: EdgeInsets.all(24),
-                            child: Icon(
-                              Icons.play_arrow,
-                              size: 64,
-                              color: Colors.white,
-                            ),
-                          ),
+            if (!_controller!.value.isPlaying && _shapes.isEmpty && _currentShape == null)
+              Positioned.fill(
+                child: Center(
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: _togglePlayPause,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: EdgeInsets.all(24),
+                        child: Icon(
+                          Icons.play_arrow,
+                          size: 64,
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ),
-              ],
-            ),
+                ),
+              ),
+          ],
+        ),
+      ),
       bottomNavigationBar: _controller == null || !_controller!.value.isInitialized
           ? Container(
               decoration: BoxDecoration(
