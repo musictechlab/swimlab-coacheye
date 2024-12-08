@@ -1310,11 +1310,9 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                   ),
                 ),
 
-                Positioned.fill(
-                  child: Center(
-                    child: AnimatedOpacity(
-                      opacity: _controller!.value.isPlaying ? 0.0 : 1.0,
-                      duration: Duration(milliseconds: 200),
+                if (!_controller!.value.isPlaying && _shapes.isEmpty && _currentShape == null)
+                  Positioned.fill(
+                    child: Center(
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
@@ -1335,7 +1333,6 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       ),
                     ),
                   ),
-                ),
               ],
             ),
       bottomNavigationBar: _controller == null || !_controller!.value.isInitialized
