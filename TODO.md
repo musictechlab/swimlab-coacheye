@@ -9,8 +9,15 @@
 - playing toolbar on mobile
 
 
+
 IN PROGRESS:
-~ - export screenshot
+~ export screenshot
+
+NICE TO HAVE:
+- native macOS screen recording solution using platform channels
+    - Or hide/disable the recording button on macOS
+- Document the platform limitations in your app's documentation
+
 
 DONE:
 + angles measure
@@ -19,3 +26,4 @@ DONE:
 + Splash Screen
 + Landing page
 - icon for desktop
+

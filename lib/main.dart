@@ -18,6 +18,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'pages/recordings_page.dart';
+import 'package:flutter_screen_recording/flutter_screen_recording.dart';
 
 
 void main() {
@@ -127,6 +128,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   Offset? _triangleToolsetPosition;
   bool _isRecording = false;
   String _recordingDuration = '00:00';
+  Timer? _recordingTimer;  // Add this property
+  bool _isInitialized = true;  // We can set this to true since we don't need initialization
 
   @override
   void initState() {
@@ -381,6 +384,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   @override
   void dispose() {
     _controller?.dispose();
+    _recordingTimer?.cancel();  // Cancel timer in dispose
     super.dispose();
   }
 
@@ -584,61 +588,92 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     setState(() {
       _isRecording = !_isRecording;
       if (_isRecording) {
-        // Start recording
         _startRecording();
       } else {
-        // Stop recording
         _stopRecording();
       }
     });
   }
 
-  void _startRecording() {
-    // Start a timer to update recording duration
-    Timer.periodic(Duration(seconds: 1), (timer) {
-      if (!_isRecording) {
-        timer.cancel();
-        return;
+  void _startRecording() async {
+    try {
+      // Check platform before attempting to record
+      if (!Platform.isMacOS) {  // Add platform check
+        final started = await FlutterScreenRecording.startRecordScreen("recording_${DateTime.now().millisecondsSinceEpoch}");
+        
+        if (started) {
+          _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+            setState(() {
+              final duration = Duration(seconds: timer.tick);
+              _recordingDuration = _formatDuration(duration);
+            });
+          });
+        } else {
+          setState(() {
+            _isRecording = false;
+            _recordingDuration = '00:00';
+          });
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to start recording')),
+            );
+          }
+        }
+      } else {
+        // Show message for macOS users
+        setState(() {
+          _isRecording = false;
+          _recordingDuration = '00:00';
+        });
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Screen recording is not supported on macOS')),
+          );
+        }
       }
-      
+    } catch (e) {
+      print('Error starting recording: $e');
       setState(() {
-        final duration = Duration(seconds: timer.tick);
-        _recordingDuration = _formatDuration(duration);
+        _isRecording = false;
+        _recordingDuration = '00:00';
       });
-    });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error starting recording: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _stopRecording() async {
+    _recordingTimer?.cancel();
     setState(() {
       _recordingDuration = '00:00';
+      _isRecording = false;
     });
 
-    try {
-      // Get the application documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final filePath = '${directory.path}/recording_$timestamp.mp4';
+    if (!Platform.isMacOS) {  // Add platform check
+      try {
+        final path = await FlutterScreenRecording.stopRecordScreen;
 
-      // Save the recording file
-      // Note: You'll need to implement the actual video recording logic here
-      // using a package like camera or screen_recorder
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Recording saved to: $filePath'),
-            action: SnackBarAction(
-              label: 'Open Folder',
-              onPressed: () => _openScreenshotFolder(filePath),
+        if (context.mounted && path != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Recording saved to: $path'),
+              action: SnackBarAction(
+                label: 'View',
+                onPressed: () => _openScreenshotFolder(path),
+              ),
             ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save recording: $e')),
-        );
+          );
+        }
+      } catch (e) {
+        print('Error stopping recording: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to stop recording: $e')),
+          );
+        }
       }
     }
   }
