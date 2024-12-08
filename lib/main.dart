@@ -847,20 +847,39 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             ),
             // Recording button
             IconButton(
-              icon: Icon(
-                _isRecording ? Icons.stop_circle : Icons.fiber_manual_record,
-                color: _isRecording ? Colors.red : Colors.white,
-              ),
-              onPressed: _toggleRecording,
-              tooltip: _isRecording ? 'Stop Recording' : 'Start Recording',
-            ),
-            if (_isRecording)
-              Center(
-                child: Text(
-                  _recordingDuration,
-                  style: TextStyle(color: Colors.red),
+            icon: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: _isRecording ? Colors.red : Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'REC',
+                      style: TextStyle(
+                        color: _isRecording ? Colors.white : Colors.red,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
+              ],
+            ),
+            onPressed: _toggleRecording,
+            tooltip: _isRecording ? 'Stop Recording' : 'Start Recording',
+          ),
+          if (_isRecording)
+            Center(
+              child: Text(
+                _recordingDuration,
+                style: TextStyle(color: Colors.red),
               ),
+            ),
             // Add screenshot button to AppBar
             IconButton(
               icon: Icon(Icons.camera_alt, color: Colors.white),
