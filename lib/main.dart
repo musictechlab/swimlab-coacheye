@@ -846,193 +846,208 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     ),
                   ),
          
-                // Right Sidebar with Tools (Positioned on Top of Video)
+                // Tools Bar (Now horizontal, positioned above bottom toolbar)
                 Positioned(
-                  top: 20,
-                  right: 10,
+                  bottom: 80,
+                  left: 0,
+                  right: 0,
                   child: Container(
-                    width: 50,
-                    color: Colors.black.withOpacity(0.5), // Add transparency
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.restart_alt, color: Colors.white),
-                          onPressed: _resetAppState,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.undo, color: Colors.white),
-                          onPressed: _undo,
-                          tooltip: 'Undo',
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.redo, color: Colors.white),
-                          onPressed: _redo,
-                          tooltip: 'Redo',
-                        ),
-                        Divider(
-                          color: Colors.grey,
-                          thickness: 1,
-                        ),
-                        IconButton(
-                          icon:
-                              Icon(Icons.color_lens, color: Colors.yellow[500]),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) {
-                                return AlertDialog(
-                                  title: Text('Pick a color'),
-                                  content: BlockPicker(
-                                    pickerColor: _selectedColor,
-                                    onColorChanged: _changeColor,
+                    height: 50,
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: MediaQuery.of(context).size.width,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.restart_alt, color: Colors.white),
+                                  onPressed: _resetAppState,
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.undo, color: Colors.white),
+                                  onPressed: _undo,
+                                  tooltip: 'Undo',
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.redo, color: Colors.white),
+                                  onPressed: _redo,
+                                  tooltip: 'Redo',
+                                ),
+                                Divider(
+                                  color: Colors.grey,
+                                  thickness: 1,
+                                ),
+                                IconButton(
+                                  icon:
+                                      Icon(Icons.color_lens, color: Colors.yellow[500]),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: Text('Pick a color'),
+                                          content: BlockPicker(
+                                            pickerColor: _selectedColor,
+                                            onColorChanged: _changeColor,
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              child: Text('Done'),
+                                              onPressed: () => Navigator.pop(context),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.line
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      child: Text('Done'),
-                                      onPressed: () => Navigator.pop(context),
+                                  child: IconButton(
+                                  icon: Icon(Icons.line_axis,
+                                    color: Colors.green[500]),
+                                  onPressed: () => _selectShape(ShapeType.line),
+                                  tooltip: 'Line',
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.curve
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                  icon: SvgPicture.asset(
+                                    'assets/line_curve.svg', // Ensure you have the SVG file in your assets
+                                    color: Colors.purple[300], // Set the color of the SVG icon
+                                    width: 24,
+                                    height: 24,
+                                  ),
+                                  onPressed: () => _selectShape(ShapeType.curve),
+                                  tooltip: 'Curve',
+                                  ),
+                                ),
+                                  
+                                Container(
+                                  decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.arrow
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                  icon: Icon(Icons.arrow_back,
+                                    color: Colors.white),
+                                  onPressed: () => _selectShape(ShapeType.arrow),
+                                  tooltip: 'Arrow',
+                                  ),
+                                ),
+
+                                Container(
+                                  decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.rectangle
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                  icon: Icon(Icons.crop_square,
+                                    color: Colors.red[200]),
+                                  onPressed: () => _selectShape(ShapeType.rectangle),
+                                  tooltip: 'Rectangle',
+                                  ),
+                                ),
+                                
+                                Container(
+                                  decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.circle
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                  icon: Icon(Icons.circle_outlined, color: Colors.orange[500]),
+                                  onPressed: () => _selectShape(ShapeType.circle),
+                                  tooltip: 'Circle',
+                                  ),
+                                ),
+
+                                Container(
+                                  decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.triangle
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                  icon: Icon(Icons.change_history,
+                                    color: Colors.blue[500]),
+                                  onPressed: () => _selectShape(ShapeType.triangle),
+                                  tooltip: 'Triangle',
+                                  ),
+                                ),
+
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: _selectedShape == ShapeType.protractor
+                                      ? Colors.black.withOpacity(0.5)
+                                      : Colors.transparent,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(Icons.architecture, // Using architecture icon for protractor
+                                      color: Colors.blue[200]),
+                                    onPressed: () => _selectShape(ShapeType.protractor),
+                                    tooltip: 'Protractor',
+                                  ),
+                                ),
+
+                                // Add Mask Toggle button to the right toolbar
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: _isMaskMode
+                                        ? Colors.black.withOpacity(0.5)
+                                        : Colors.transparent,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.flashlight_on,
+                                      color: _isMaskMode ? Colors.yellow : Colors.white,
                                     ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                          color: _selectedShape == ShapeType.line
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.transparent,
-                          shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                          icon: Icon(Icons.line_axis,
-                            color: Colors.green[500]),
-                          onPressed: () => _selectShape(ShapeType.line),
-                          tooltip: 'Line',
-                          ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                          color: _selectedShape == ShapeType.curve
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.transparent,
-                          shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/line_curve.svg', // Ensure you have the SVG file in your assets
-                            color: Colors.purple[300], // Set the color of the SVG icon
-                            width: 24,
-                            height: 24,
-                          ),
-                          onPressed: () => _selectShape(ShapeType.curve),
-                          tooltip: 'Curve',
-                          ),
-                        ),
-                          
-                        Container(
-                          decoration: BoxDecoration(
-                          color: _selectedShape == ShapeType.arrow
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.transparent,
-                          shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                          icon: Icon(Icons.arrow_back,
-                            color: Colors.white),
-                          onPressed: () => _selectShape(ShapeType.arrow),
-                          tooltip: 'Arrow',
-                          ),
-                        ),
-
-                        Container(
-                          decoration: BoxDecoration(
-                          color: _selectedShape == ShapeType.rectangle
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.transparent,
-                          shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                          icon: Icon(Icons.crop_square,
-                            color: Colors.red[200]),
-                          onPressed: () => _selectShape(ShapeType.rectangle),
-                          tooltip: 'Rectangle',
-                          ),
-                        ),
-                        
-                        Container(
-                          decoration: BoxDecoration(
-                          color: _selectedShape == ShapeType.circle
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.transparent,
-                          shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                          icon: Icon(Icons.circle_outlined, color: Colors.orange[500]),
-                          onPressed: () => _selectShape(ShapeType.circle),
-                          tooltip: 'Circle',
-                          ),
-                        ),
-
-                        Container(
-                          decoration: BoxDecoration(
-                          color: _selectedShape == ShapeType.triangle
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.transparent,
-                          shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                          icon: Icon(Icons.change_history,
-                            color: Colors.blue[500]),
-                          onPressed: () => _selectShape(ShapeType.triangle),
-                          tooltip: 'Triangle',
-                          ),
-                        ),
-
-                        Container(
-                          decoration: BoxDecoration(
-                            color: _selectedShape == ShapeType.protractor
-                              ? Colors.black.withOpacity(0.5)
-                              : Colors.transparent,
-                            shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                            icon: Icon(Icons.architecture, // Using architecture icon for protractor
-                              color: Colors.blue[200]),
-                            onPressed: () => _selectShape(ShapeType.protractor),
-                            tooltip: 'Protractor',
-                          ),
-                        ),
-
-                        // Add Mask Toggle button to the right toolbar
-                        Container(
-                          decoration: BoxDecoration(
-                            color: _isMaskMode
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.transparent,
-                            shape: BoxShape.rectangle,
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.flashlight_on,
-                              color: _isMaskMode ? Colors.yellow : Colors.white,
+                                    onPressed: _toggleMaskMode,
+                                    tooltip: 'Toggle Mask Mode',
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.line_weight, color: Colors.yellow[500]),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
+                                    });
+                                  },
+                                  tooltip: 'Adjust Stroke Width',
+                                ),
+                              
+                              ],
                             ),
-                            onPressed: _toggleMaskMode,
-                            tooltip: 'Toggle Mask Mode',
                           ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.line_weight, color: Colors.yellow[500]),
-                          onPressed: () {
-                            setState(() {
-                              _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
-                            });
-                          },
-                          tooltip: 'Adjust Stroke Width',
-                        ),
-                      
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
