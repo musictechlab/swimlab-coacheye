@@ -38,6 +38,9 @@ dependencies:
   path_provider: ^2.1.1
   image_gallery_saver: ^2.0.3
   url_launcher: ^6.2.5
+  flutter_screen_recording: ^2.0.8
+  flutter_sound: ^9.2.13
+  flutter_ffmpeg: ^0.4.2
   
 dev_dependencies:
   flutter_test:
@@ -77,6 +80,7 @@ flutter:
     - assets/splash.png
     - assets/swimbuddy_logo.png
     - assets/background.jpg
+    - assets/splash.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

@@ -41,6 +41,11 @@ class _CoachEyeState extends State<CoachEye> {
     return MaterialApp(
       theme: ThemeData(
         scaffoldBackgroundColor: _backgroundColor,
+        appBarTheme: AppBarTheme(
+          iconTheme: IconThemeData(color: Colors.white), // This will make all AppBar icons white, including the back button
+          color: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       home: VideoEditorScreen(
         backgroundColor: _backgroundColor,
@@ -99,6 +104,19 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   bool _isResizingProtractor = false;
   Shape? _selectedProtractor;
   final GlobalKey _screenshotKey = GlobalKey();
+  bool _isResizingCircle = false;
+  Shape? _selectedCircle;
+  bool _isResizingTriangle = false;
+  Shape? _selectedTriangle;
+  bool _isResizingRectangle = false;
+  Shape? _selectedRectangle;
+  bool _isResizingArrow = false;
+  Shape? _selectedArrow;
+  // Add this property to track angle visibility
+  bool _showTriangleAngles = true;
+  final GlobalKey _triangleIconKey = GlobalKey();
+  bool _isTriangleToolsetVisible = false;
+  Offset? _triangleToolsetPosition;
 
   @override
   void initState() {
@@ -380,19 +398,34 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 onBackgroundColorChanged: widget.onBackgroundColorChanged,
               ),
             ),
-          );
+          ).then((_) {
+            // Reset selected index when returning from Settings
+            setState(() {
+              _selectedIndex = HOME_INDEX;
+            });
+          });
           break;
         case 3: // SwimBuddy
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => SwimBuddyPage()),
-          );
+          ).then((_) {
+            // Reset selected index when returning from SwimBuddy
+            setState(() {
+              _selectedIndex = HOME_INDEX;
+            });
+          });
           break;
         case 4: // About
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AboutPage()),
-          );
+            MaterialPageRoute(builder: (context) => AboutPage())
+          ).then((_) {
+            // Reset selected index when returning from About
+            setState(() {
+              _selectedIndex = HOME_INDEX;
+            });
+          });
           break;
       }
     });
@@ -405,6 +438,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
       _controller = null;
       _showAnimation = true; // Show the welcome animation again
       _resetAppState(); // Reset all drawing states
+      _selectedIndex = HOME_INDEX; // Set selected index to home
     });
   }
 
@@ -450,7 +484,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             SnackBar(
               content: Text('Screenshot saved: ${file.path}'),
               action: SnackBarAction(
-                label: 'Open Folder',
+                label: 'Open File',
                 onPressed: () => _openScreenshotFolder(file.path),
               ),
             ),
@@ -510,10 +544,18 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     }
   }
 
+  void _toggleTriangleToolset() {
+    final RenderBox renderBox = _triangleIconKey.currentContext?.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    setState(() {
+      _isTriangleToolsetVisible = !_isTriangleToolsetVisible;
+      _triangleToolsetPosition = position;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -535,12 +577,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     ),
                     IconButton(
                       icon: Icon(Icons.close, color: Colors.yellow),
-                      onPressed: () {
-                        setState(() {
-                          _controller?.dispose();
-                          _controller = null;
-                        });
-                      },
+                      onPressed: _returnHome,
                       tooltip: 'Close Video',
                     ),
                   ],
@@ -608,18 +645,171 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
         key: _screenshotKey,
         child: Stack(
           children: [
-            Positioned.fill(
-              child: _isFullScreen
-                  ? VideoPlayer(_controller!)
-                  : Center(
-                      child: AspectRatio(
-                        aspectRatio: _controller!.value.aspectRatio,
-                        child: VideoPlayer(_controller!),
-                      ),
+            // Add the home page design when no video is loaded and showing animation
+            if (_controller == null && _showAnimation)
+              Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('assets/background.jpg'),
+                    fit: BoxFit.cover,
+                    colorFilter: ColorFilter.mode(
+                      Colors.black.withOpacity(0.75),
+                      BlendMode.darken,
                     ),
-            ),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Animated Text
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20.0),
+                          child: TweenAnimationBuilder(
+                            duration: Duration(seconds: 3),
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            builder: (context, double value, child) {
+                              return Opacity(
+                                opacity: value,
+                                child: Transform.translate(
+                                  offset: Offset(0, 20 * (1 - value)),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: Text(
+                                      'Swimming Video Analysis Made Easy',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+                        // Wrap both text and logo in a single GestureDetector
+                        GestureDetector(
+                          onTap: _pickVideo,
+                          
+                          behavior: HitTestBehavior.opaque, // Add this to ensure taps are caught
+                          child: Column(
+                            
+                            children: [
+                              GestureDetector(
+                                onTap: _pickVideo,
+                                
+                                child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        child: Text(
+                                  'Click to open a video file',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                    decoration: TextDecoration.underline, // Add underline to indicate clickability
+                                  ),
+                                ),
+                              )),
+                              SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                              // Animated Logo
+                              TweenAnimationBuilder(
+                                duration: Duration(seconds: 1),
+                                tween: Tween<double>(begin: 0.0, end: 1.0),
+                                builder: (context, double value, child) {
+                                  final screenSize = MediaQuery.of(context).size;
+                                  final logoSize = math.min(
+                                    screenSize.width * 0.4,
+                                    screenSize.height * 0.4
+                                  );
+                                  
+                                  return Transform.scale(
+                                    scale: value,
+                                    child: Opacity(
+                                      opacity: value,
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.5),
+                                              width: 2,
+                                              strokeAlign: BorderSide.strokeAlignOutside,
+                                            ),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: CustomPaint(
+                                            foregroundPainter: DottedBorderPainter(),
+                                            child: Padding(
+                                              padding: EdgeInsets.all(16),
+                                              child: Image.asset(
+                                                'assets/splash.png',
+                                                width: logoSize,
+                                                height: logoSize,
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Add TI dedication text
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+                        TweenAnimationBuilder(
+                          duration: Duration(seconds: 2),
+                          tween: Tween<double>(begin: 0.0, end: 1.0),
+                          builder: (context, double value, child) {
+                            return Opacity(
+                              opacity: value,
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(text: 'with love to '),
+                                    TextSpan(
+                                      text: 'Total Immersion',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    TextSpan(text: ' Swimming'),
+                                  ],
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
-            // Add Mask Layer
+            // Existing video player and other widgets
+            if (_controller != null && _controller!.value.isInitialized && !_showAnimation)
+              Positioned.fill(
+                child: _isFullScreen
+                    ? VideoPlayer(_controller!)
+                    : Center(
+                        child: AspectRatio(
+                          aspectRatio: _controller!.value.aspectRatio,
+                          child: VideoPlayer(_controller!),
+                        ),
+                      ),
+              ),
+
+            // Drawing layers
             if (_isMaskMode)
               Positioned.fill(
                 child: CustomPaint(
@@ -628,200 +818,613 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 ),
               ),
 
-            // Drawing/Annotation Overlay
-            GestureDetector(
-              onPanStart: (details) {
-                if (_selectedShape == ShapeType.protractor) {
-                  final position = details.localPosition;
-                  // Check if we're clicking on an existing protractor
-                  for (var shape in _shapes) {
-                    if (shape.shapeType == ShapeType.protractor) {
-                      final center = shape.points.first;
-                      final radius = (shape.points.first - shape.points.last).distance;
+            // Drawing overlay
+            if (_controller != null && _controller!.value.isInitialized)
+              GestureDetector(
+                onPanStart: (details) {
+                  if (_selectedShape == ShapeType.protractor) {
+                    final position = details.localPosition;
+                    // Check if we're clicking on an existing protractor
+                    for (var shape in _shapes) {
+                      if (shape.shapeType == ShapeType.protractor) {
+                        final center = shape.points.first;
+                        final radius = (shape.points.first - shape.points.last).distance;
+                        final distanceFromCenter = (position - center).distance;
+                        
+                        // Check if we're near the edge (for resizing)
+                        if ((distanceFromCenter - radius).abs() < 20) {
+                          setState(() {
+                            _isResizingProtractor = true;
+                            _selectedProtractor = shape;
+                            _currentShape = shape;
+                          });
+                          return;
+                        }
+                        
+                        // Check if we're inside the protractor (for moving)
+                        if (distanceFromCenter < radius) {
+                          setState(() {
+                            _isMovingShape = true;
+                            _movingShape = shape;
+                            _lastPosition = position;
+                          });
+                          return;
+                        }
+                      }
+                    }
+                    
+                    // Create new protractor if not interacting with existing one
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [position, position],
+                        color: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                        shapeType: ShapeType.protractor,
+                      );
+                    });
+                    return;
+                  }
+                  if (_isMaskMode) {
+                    final position = details.localPosition;
+                    // If we already have a mask, check if we're clicking near its edge
+                    if (_maskShape != null) {
+                      final center = _maskShape!.points.first;
+                      final radius = (_maskShape!.points.first - _maskShape!.points.last).distance;
                       final distanceFromCenter = (position - center).distance;
                       
                       // Check if we're near the edge (for resizing)
                       if ((distanceFromCenter - radius).abs() < 20) {
                         setState(() {
-                          _isResizingProtractor = true;
-                          _selectedProtractor = shape;
-                          _currentShape = shape;
+                          _isResizingMask = true;
+                          _currentShape = _maskShape;
                         });
                         return;
                       }
                       
-                      // Check if we're inside the protractor (for moving)
+                      // Check if we're inside the circle (for moving)
                       if (distanceFromCenter < radius) {
                         setState(() {
                           _isMovingShape = true;
-                          _movingShape = shape;
+                          _movingShape = _maskShape;
                           _lastPosition = position;
                         });
                         return;
                       }
                     }
-                  }
-                  
-                  // Create new protractor if not interacting with existing one
-                  setState(() {
-                    _currentShape = Shape(
-                      points: [position, position],
-                      color: _selectedColor,
-                      strokeWidth: _strokeWidth,
-                      shapeType: ShapeType.protractor,
-                    );
-                  });
-                  return;
-                }
-                if (_isMaskMode) {
-                  final position = details.localPosition;
-                  // If we already have a mask, check if we're clicking near its edge
-                  if (_maskShape != null) {
-                    final center = _maskShape!.points.first;
-                    final radius = (_maskShape!.points.first - _maskShape!.points.last).distance;
-                    final distanceFromCenter = (position - center).distance;
                     
-                    // Check if we're near the edge (for resizing)
-                    if ((distanceFromCenter - radius).abs() < 20) {
+                    // Create new mask only if we don't have one
+                    if (_maskShape == null) {
                       setState(() {
-                        _isResizingMask = true;
-                        _currentShape = _maskShape;
+                        _currentShape = Shape(
+                          points: [position, position],
+                          color: Colors.transparent,
+                          strokeWidth: 1,
+                          shapeType: ShapeType.circle,
+                          isMask: true,
+                        );
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.circle) {
+                    final position = details.localPosition;
+                    // Check if we're clicking on an existing circle
+                    for (var shape in _shapes) {
+                      if (shape.shapeType == ShapeType.circle) {
+                        final center = shape.points.first;
+                        final radius = (shape.points.first - shape.points.last).distance;
+                        final distanceFromCenter = (position - center).distance;
+                        
+                        // Check if we're near the edge (for resizing)
+                        if ((distanceFromCenter - radius).abs() < 20) {
+                          setState(() {
+                            _isResizingCircle = true;
+                            _selectedCircle = shape;
+                            _currentShape = shape;
+                          });
+                          return;
+                        }
+                        
+                        // Check if we're inside the circle (for moving)
+                        if (distanceFromCenter < radius) {
+                          setState(() {
+                            _isMovingShape = true;
+                            _movingShape = shape;
+                            _lastPosition = position;
+                          });
+                          return;
+                        }
+                      }
+                    }
+                    
+                    // Create new circle if not interacting with existing one
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [position, position],
+                        color: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                        shapeType: ShapeType.circle,
+                      );
+                    });
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.triangle) {
+                    final position = details.localPosition;
+                    // Check if we're clicking on an existing triangle
+                    for (var shape in _shapes) {
+                      if (shape.shapeType == ShapeType.triangle) {
+                        final p1 = shape.points[0];
+                        final p2 = shape.points.last;
+                        final p3 = Offset(2 * p1.dx - p2.dx, p2.dy);
+                        
+                        // Check if we're near any vertex for resizing
+                        if ((position - p1).distance < 20 || 
+                            (position - p2).distance < 20 || 
+                            (position - p3).distance < 20) {
+                          setState(() {
+                            _isResizingTriangle = true;
+                            _selectedTriangle = shape;
+                            _currentShape = shape;
+                          });
+                          return;
+                        }
+                        
+                        // Check if we're inside the triangle for moving
+                        if (_pointInTriangle(position, p1, p2, p3)) {
+                          setState(() {
+                            _isMovingShape = true;
+                            _movingShape = shape;
+                            _lastPosition = position;
+                          });
+                          return;
+                        }
+                      }
+                    }
+                    
+                    // Create new triangle if not interacting with existing one
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [position, position],
+                        color: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                        shapeType: ShapeType.triangle,
+                      );
+                    });
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.rectangle) {
+                    final position = details.localPosition;
+                    // Check if we're clicking on an existing rectangle
+                    for (var shape in _shapes) {
+                      if (shape.shapeType == ShapeType.rectangle) {
+                        final rect = Rect.fromPoints(shape.points.first, shape.points.last);
+                        
+                        // Check if we're near any corner (for resizing)
+                        if (_isNearCorner(position, rect)) {
+                          setState(() {
+                            _isResizingRectangle = true;
+                            _selectedRectangle = shape;
+                            _currentShape = shape;
+                          });
+                          return;
+                        }
+                        
+                        // Check if we're inside the rectangle (for moving)
+                        if (rect.contains(position)) {
+                          setState(() {
+                            _isMovingShape = true;
+                            _movingShape = shape;
+                            _lastPosition = position;
+                          });
+                          return;
+                        }
+                      }
+                    }
+                    
+                    // Create new rectangle if not interacting with existing one
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [position, position],
+                        color: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                        shapeType: ShapeType.rectangle,
+                      );
+                    });
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.arrow) {
+                    final position = details.localPosition;
+                    // Check if we're clicking on an existing arrow
+                    for (var shape in _shapes) {
+                      if (shape.shapeType == ShapeType.arrow) {
+                        final start = shape.points.first;
+                        final end = shape.points.last;
+                        
+                        // Check if we're near either end of the arrow (for resizing)
+                        if ((position - start).distance < 20 || (position - end).distance < 20) {
+                          setState(() {
+                            _isResizingArrow = true;
+                            _selectedArrow = shape;
+                            _currentShape = shape;
+                          });
+                          return;
+                        }
+                        
+                        // Check if we're near the arrow line (for moving)
+                        if (_isPointNearLine(position, start, end)) {
+                          setState(() {
+                            _isMovingShape = true;
+                            _movingShape = shape;
+                            _lastPosition = position;
+                          });
+                          return;
+                        }
+                      }
+                    }
+                    
+                    // Create new arrow if not interacting with existing one
+                    setState(() {
+                      _currentShape = Shape(
+                        points: [position, position],
+                        color: _selectedColor,
+                        strokeWidth: _strokeWidth,
+                        shapeType: ShapeType.arrow,
+                      );
+                    });
+                    return;
+                  }
+                    final position = details.localPosition;
+                  // Check if we're clicking on an existing shape
+                    for (var shape in _shapes) {
+                    if (shape.containsPoint(position)) {
+                      setState(() {
+                        _isMovingShape = true;
+                        _movingShape = shape;
+                        _lastPosition = position;
+                        // Deselect other shapes
+                        for (var s in _shapes) {
+                          s.isSelected = false;
+                        }
+                        shape.isSelected = true;
                       });
                       return;
                     }
-                    
-                    // Check if we're inside the circle (for moving)
-                    if (distanceFromCenter < radius) {
+                  }
+                  
+                  // If not clicking on a shape, start drawing a new one
+                  setState(() {
+                    for (var s in _shapes) {
+                      s.isSelected = false;
+                    }
+                    _currentShape = Shape(
+                      points: [position],
+                      color: _selectedColor,
+                      strokeWidth: _strokeWidth,
+                      shapeType: _selectedShape,
+                    );
+                  });
+                },
+                onPanUpdate: (details) {
+                  if (_selectedShape == ShapeType.protractor) {
+                    final position = details.localPosition;
+                    if (_isResizingProtractor && _selectedProtractor != null) {
                       setState(() {
-                        _isMovingShape = true;
-                        _movingShape = _maskShape;
+                        _selectedProtractor!.points[1] = position; // Update radius
+                      });
+                      return;
+                    }
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
                         _lastPosition = position;
                       });
                       return;
                     }
-                  }
-                  
-                  // Create new mask only if we don't have one
-                  if (_maskShape == null) {
-                    setState(() {
-                      _currentShape = Shape(
-                        points: [position, position],
-                        color: Colors.transparent,
-                        strokeWidth: 1,
-                        shapeType: ShapeType.circle,
-                        isMask: true,
-                      );
-                    });
-                  }
-                  return;
-                }
-                final position = details.localPosition;
-                // Check if we're clicking on an existing shape
-                for (var shape in _shapes) {
-                  if (shape.containsPoint(position)) {
-                    setState(() {
-                      _isMovingShape = true;
-                      _movingShape = shape;
-                      _lastPosition = position;
-                      // Deselect other shapes
-                      for (var s in _shapes) {
-                        s.isSelected = false;
-                      }
-                      shape.isSelected = true;
-                    });
-                    return;
-                  }
-                }
-                
-                // If not clicking on a shape, start drawing a new one
-                setState(() {
-                  for (var s in _shapes) {
-                    s.isSelected = false;
-                  }
-                  _currentShape = Shape(
-                    points: [position],
-                    color: _selectedColor,
-                    strokeWidth: _strokeWidth,
-                    shapeType: _selectedShape,
-                  );
-                });
-              },
-              onPanUpdate: (details) {
-                if (_selectedShape == ShapeType.protractor) {
-                  final position = details.localPosition;
-                  if (_isResizingProtractor && _selectedProtractor != null) {
-                    setState(() {
-                      _selectedProtractor!.points[1] = position; // Update radius
-                    });
-                    return;
-                  }
-                  if (_isMovingShape && _movingShape != null && _lastPosition != null) {
-                    setState(() {
-                      final delta = position - _lastPosition!;
-                      _movingShape!.move(delta);
-                      _lastPosition = position;
-                    });
-                    return;
-                  }
-                  if (_currentShape != null) {
-                    setState(() {
-                      _currentShape!.points[1] = position;
-                    });
-                  }
-                  return;
-                }
-                if (_isMaskMode) {
-                  final position = details.localPosition;
-                  if (_isResizingMask && _currentShape != null) {
-                    setState(() {
-                      _currentShape!.points[1] = position; // Update radius
-                      _maskShape = _currentShape;
-                    });
-                    return;
-                  }
-                  if (_isMovingShape && _movingShape != null && _lastPosition != null) {
-                    setState(() {
-                      final delta = position - _lastPosition!;
-                      _movingShape!.move(delta);
-                      _lastPosition = position;
-                      _maskShape = _movingShape;
-                    });
-                    return;
-                  }
-                  if (_currentShape != null) {
-                    setState(() {
-                      _currentShape!.points[1] = position; // Update radius while creating
-                    });
-                  }
-                  return;
-                }
-                final position = details.localPosition;
-                if (_isMovingShape && _movingShape != null && _lastPosition != null) {
-                  setState(() {
-                    final delta = position - _lastPosition!;
-                    _movingShape!.move(delta);
-                    _lastPosition = position;
-                  });
-                } else if (_currentShape != null) {
-                  setState(() {
-                    if (_selectedShape == ShapeType.angle) {
-                      if (_currentShape!.points.length < 3) {
-                        _currentShape!.points.add(position);
-                      }
-                    } else {
-                      _currentShape?.points.add(position);
+                    if (_currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position;
+                      });
                     }
-                  });
-                }
-              },
-              onPanEnd: (details) {
-                if (_selectedShape == ShapeType.protractor) {
-                  if (_isResizingProtractor) {
+                    return;
+                  }
+                  if (_isMaskMode) {
+                    final position = details.localPosition;
+                    if (_isResizingMask && _currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position; // Update radius
+                        _maskShape = _currentShape;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
+                        _lastPosition = position;
+                        _maskShape = _movingShape;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position; // Update radius while creating
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.circle) {
+                    final position = details.localPosition;
+                    if (_isResizingCircle && _selectedCircle != null) {
+                      setState(() {
+                        _selectedCircle!.points[1] = position; // Update radius
+                      });
+                      return;
+                    }
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
+                        _lastPosition = position;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position;
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.triangle) {
+                    final position = details.localPosition;
+                    if (_isResizingTriangle && _selectedTriangle != null) {
+                      setState(() {
+                        // Update the triangle's base point while keeping the apex fixed
+                        _selectedTriangle!.points[1] = position;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
+                        _lastPosition = position;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position;
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.rectangle) {
+                    final position = details.localPosition;
+                    if (_isResizingRectangle && _selectedRectangle != null) {
+                      setState(() {
+                        _selectedRectangle!.points[1] = position; // Update corner position
+                      });
+                      return;
+                    }
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
+                        _lastPosition = position;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position;
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.arrow) {
+                    final position = details.localPosition;
+                    if (_isResizingArrow && _selectedArrow != null) {
+                      setState(() {
+                        // Update the nearest end point of the arrow
+                        final start = _selectedArrow!.points.first;
+                        final end = _selectedArrow!.points.last;
+                        if ((position - start).distance < (position - end).distance) {
+                          _selectedArrow!.points[0] = position;
+                        } else {
+                          _selectedArrow!.points[1] = position;
+                        }
+                      });
+                      return;
+                    }
+                    if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                      setState(() {
+                        final delta = position - _lastPosition!;
+                        _movingShape!.move(delta);
+                        _lastPosition = position;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _currentShape!.points[1] = position;
+                      });
+                    }
+                    return;
+                  }
+                  final position = details.localPosition;
+                  if (_isMovingShape && _movingShape != null && _lastPosition != null) {
                     setState(() {
-                      _isResizingProtractor = false;
-                      _selectedProtractor = null;
-                      _currentShape = null;
+                      final delta = position - _lastPosition!;
+                      _movingShape!.move(delta);
+                      _lastPosition = position;
                     });
+                  } else if (_currentShape != null) {
+                    setState(() {
+                      if (_selectedShape == ShapeType.angle) {
+                        if (_currentShape!.points.length < 3) {
+                          _currentShape!.points.add(position);
+                        }
+                      } else {
+                        _currentShape?.points.add(position);
+                      }
+                    });
+                  }
+                },
+                onPanEnd: (details) {
+                  if (_selectedShape == ShapeType.protractor) {
+                    if (_isResizingProtractor) {
+                      setState(() {
+                        _isResizingProtractor = false;
+                        _selectedProtractor = null;
+                        _currentShape = null;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _shapes.add(_currentShape!);
+                        _currentShape = null;
+                        _undoStack.clear();
+                      });
+                    }
+                    return;
+                  }
+                  if (_isMaskMode) {
+                    if (_isResizingMask) {
+                      setState(() {
+                        _isResizingMask = false;
+                        _currentShape = null;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _maskShape = _currentShape;
+                        _currentShape = null;
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.circle) {
+                    if (_isResizingCircle) {
+                      setState(() {
+                        _isResizingCircle = false;
+                        _selectedCircle = null;
+                        _currentShape = null;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _shapes.add(_currentShape!);
+                        _currentShape = null;
+                        _undoStack.clear();
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.triangle) {
+                    if (_isResizingTriangle) {
+                      setState(() {
+                        _isResizingTriangle = false;
+                        _selectedTriangle = null;
+                        _currentShape = null;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _shapes.add(_currentShape!);
+                        _currentShape = null;
+                        _undoStack.clear();
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.rectangle) {
+                    if (_isResizingRectangle) {
+                      setState(() {
+                        _isResizingRectangle = false;
+                        _selectedRectangle = null;
+                        _currentShape = null;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _shapes.add(_currentShape!);
+                        _currentShape = null;
+                        _undoStack.clear();
+                      });
+                    }
+                    return;
+                  }
+                  if (_selectedShape == ShapeType.arrow) {
+                    if (_isResizingArrow) {
+                      setState(() {
+                        _isResizingArrow = false;
+                        _selectedArrow = null;
+                        _currentShape = null;
+                      });
+                      return;
+                    }
+                    if (_isMovingShape) {
+                      setState(() {
+                        _isMovingShape = false;
+                        _movingShape = null;
+                        _lastPosition = null;
+                      });
+                      return;
+                    }
+                    if (_currentShape != null) {
+                      setState(() {
+                        _shapes.add(_currentShape!);
+                        _currentShape = null;
+                        _undoStack.clear();
+                      });
+                    }
                     return;
                   }
                   if (_isMovingShape) {
@@ -830,597 +1433,649 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                       _movingShape = null;
                       _lastPosition = null;
                     });
-                    return;
-                  }
-                  if (_currentShape != null) {
+                  } else if (_currentShape != null) {
                     setState(() {
                       _shapes.add(_currentShape!);
                       _currentShape = null;
                       _undoStack.clear();
                     });
                   }
-                  return;
-                }
-                if (_isMaskMode) {
-                  if (_isResizingMask) {
-                    setState(() {
-                      _isResizingMask = false;
-                      _currentShape = null;
-                    });
-                    return;
-                  }
-                  if (_isMovingShape) {
-                    setState(() {
-                      _isMovingShape = false;
-                      _movingShape = null;
-                      _lastPosition = null;
-                    });
-                    return;
-                  }
-                  if (_currentShape != null) {
-                    setState(() {
-                      _maskShape = _currentShape;
-                      _currentShape = null;
-                    });
-                  }
-                  return;
-                }
-                if (_isMovingShape) {
-                  setState(() {
-                    _isMovingShape = false;
-                    _movingShape = null;
-                    _lastPosition = null;
-                  });
-                } else if (_currentShape != null) {
-                  setState(() {
-                    _shapes.add(_currentShape!);
-                    _currentShape = null;
-                    _undoStack.clear();
-                  });
-                }
-              },
-              child: MouseRegion(
-                cursor: _isMaskMode ? SystemMouseCursors.click : MouseCursor.defer,
-                child: CustomPaint(
-                  painter: DrawingPainter(
-                    _shapes,
-                    _currentShape,
-                    _calculateAngle,
-                  ),
-                  child: Container(),
-                ),
-              ),
-            ),
-
-            // Horizontal Volume Slider (Appears Beside Sidebar)
-            if (_isVolumeSliderVisible)
-              Positioned(
-                top: 305, // Align with the speaker icon
-                left: 50, // Place beside the sidebar
-                child: Container(
-                  width: 300, // Adjust slider width
-                  height: 40,
-                  color: Colors.black.withOpacity(0.5), // Background for slider
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _volume,
-                          min: 0.0,
-                          max: 1.0,
-                          onChanged: _setVolume,
-                          activeColor: Colors.red,
-                          inactiveColor: Colors.grey,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.white),
-                        onPressed: () {
-                          setState(() {
-                            _isVolumeSliderVisible = false; // Close slider
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // Tools Bar (Now horizontal, positioned above bottom toolbar)
-            Positioned(
-              bottom: 80,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 50,
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: MediaQuery.of(context).size.width,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.restart_alt, 
-                                color: _isMaskMode ? Colors.grey : (_shapes.isEmpty ? Colors.grey : Colors.white)
-                              ),
-                              onPressed: _isMaskMode ? null : (_shapes.isEmpty ? null : _resetAppState),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.undo, 
-                                color: _isMaskMode ? Colors.grey : (_shapes.isEmpty ? Colors.grey : Colors.white)
-                              ),
-                              onPressed: _isMaskMode ? null : (_shapes.isEmpty ? null : _undo),
-                              tooltip: 'Undo',
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.redo, 
-                                color: _isMaskMode ? Colors.grey : (_undoStack.isEmpty ? Colors.grey : Colors.white)
-                              ),
-                              onPressed: _isMaskMode ? null : (_undoStack.isEmpty ? null : _redo),
-                              tooltip: 'Redo',
-                            ),
-                            VerticalDivider(
-                              color: Colors.grey,
-                              thickness: 1,
-                              indent: 8,
-                              endIndent: 8,
-                              width: 20,
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.color_lens, 
-                                color: _isMaskMode ? Colors.grey : Colors.yellow[500]
-                              ),
-                              onPressed: _isMaskMode ? null : () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return AlertDialog(
-                                      title: Text('Pick a color'),
-                                      content: BlockPicker(
-                                        pickerColor: _selectedColor,
-                                        onColorChanged: _changeColor,
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          child: Text('Done'),
-                                          onPressed: () => Navigator.pop(context),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.line && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.line_axis,
-                                  color: _isMaskMode ? Colors.grey : Colors.green[500]
-                                ),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.line),
-                                tooltip: 'Line',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.curve && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: SvgPicture.asset(
-                                  'assets/line_curve.svg', // Ensure you have the SVG file in your assets
-                                  color: _isMaskMode ? Colors.grey : Colors.purple[300], // Set the color of the SVG icon
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.curve),
-                                tooltip: 'Curve',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.arrow && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.arrow_back,
-                                  color: _isMaskMode ? Colors.grey : Colors.white
-                                ),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.arrow),
-                                tooltip: 'Arrow',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.rectangle && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.crop_square,
-                                  color: _isMaskMode ? Colors.grey : Colors.red[200]
-                                ),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.rectangle),
-                                tooltip: 'Rectangle',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.circle && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.circle_outlined, color: _isMaskMode ? Colors.grey : Colors.orange[500]),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.circle),
-                                tooltip: 'Circle',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.triangle && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.change_history,
-                                  color: _isMaskMode ? Colors.grey : Colors.blue[500]
-                                ),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.triangle),
-                                tooltip: 'Triangle',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _selectedShape == ShapeType.protractor && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.architecture, // Using architecture icon for protractor
-                                  color: _isMaskMode ? Colors.grey : Colors.blue[200]
-                                ),
-                                onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.protractor),
-                                tooltip: 'Protractor',
-                              ),
-                            ),
-                            VerticalDivider(
-                              color: Colors.grey,
-                              thickness: 1,
-                              indent: 8,
-                              endIndent: 8,
-                              width: 20,
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _isStrokeWidthSliderVisible && !_isMaskMode
-                                  ? Colors.black.withOpacity(0.5)
-                                  : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                key: _strokeWidthIconKey,
-                                icon: Icon(
-                                  Icons.line_weight, 
-                                  color: _isMaskMode ? Colors.grey : Colors.white
-                                ),
-                                onPressed: _isMaskMode ? null : () {
-                                  final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
-                                  final position = renderBox.localToGlobal(Offset.zero);
-                                  setState(() {
-                                    _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
-                                    _strokeWidthPosition = position;
-                                  });
-                                },
-                                tooltip: 'Adjust Stroke Width',
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: _isMaskMode
-                                    ? Colors.black.withOpacity(0.5)
-                                    : Colors.transparent,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.flashlight_on,
-                                  color: _isMaskMode ? Colors.yellow : Colors.yellow,
-                                ),
-                                onPressed: _toggleMaskMode,
-                                tooltip: 'Toggle Mask Mode',
-                              ),
-                            ),
-                            
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Stroke Width Slider
-            if (_isStrokeWidthSliderVisible && _strokeWidthPosition != null)
-              Positioned(
-                left: _strokeWidthPosition!.dx - 0, // Center on the icon
-                bottom: MediaQuery.of(context).size.height - _strokeWidthPosition!.dy,
-                child: Container(
-                  width: 40,
-                  height: 200,
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      topRight: Radius.circular(8),
+                },
+                child: MouseRegion(
+                  cursor: _isMaskMode ? SystemMouseCursors.click : MouseCursor.defer,
+                  child: CustomPaint(
+                    painter: DrawingPainter(
+                      _shapes,
+                      _currentShape,
+                      _calculateAngle,
+                      showTriangleAngles: _showTriangleAngles,
                     ),
+                    child: Container(),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.white, size: 20),
-                        onPressed: () {
-                          setState(() {
-                            _isStrokeWidthSliderVisible = false;
-                          });
-                        },
-                      ),
-                      Expanded(
-                        child: RotatedBox(
-                          quarterTurns: 3,
+                ),
+              ),
+
+            // Playback controls - Only show when video is loaded
+            if (_controller != null && _controller!.value.isInitialized) ...[
+              // Volume slider
+              if (_isVolumeSliderVisible)
+                Positioned(
+                  top: 305, // Align with the speaker icon
+                  left: 50, // Place beside the sidebar
+                  child: Container(
+                    width: 300, // Adjust slider width
+                    height: 40,
+                    color: Colors.black.withOpacity(0.5), // Background for slider
+                    child: Row(
+                      children: [
+                        Expanded(
                           child: Slider(
-                            value: _strokeWidth,
-                            min: 1.0,
-                            max: 30.0,
-                            onChanged: _changeStrokeWidth,
-                            activeColor: _selectedColor,
+                            value: _volume,
+                            min: 0.0,
+                            max: 1.0,
+                            onChanged: _setVolume,
+                            activeColor: Colors.red,
                             inactiveColor: Colors.grey,
                           ),
                         ),
-                      ),
-                      Text(
-                        _strokeWidth.toStringAsFixed(1),
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      SizedBox(height: 8),
-                    ],
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _isVolumeSliderVisible = false; // Close slider
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Tools bar
+              Positioned(
+                bottom: 80,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 50,
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: MediaQuery.of(context).size.width,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.restart_alt, 
+                                  color: _isMaskMode ? Colors.grey : (_shapes.isEmpty ? Colors.grey : Colors.white)
+                                ),
+                                onPressed: _isMaskMode ? null : (_shapes.isEmpty ? null : _resetAppState),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.undo, 
+                                  color: _isMaskMode ? Colors.grey : (_shapes.isEmpty ? Colors.grey : Colors.white)
+                                ),
+                                onPressed: _isMaskMode ? null : (_shapes.isEmpty ? null : _undo),
+                                tooltip: 'Undo',
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.redo, 
+                                  color: _isMaskMode ? Colors.grey : (_undoStack.isEmpty ? Colors.grey : Colors.white)
+                                ),
+                                onPressed: _isMaskMode ? null : (_undoStack.isEmpty ? null : _redo),
+                                tooltip: 'Redo',
+                              ),
+                              VerticalDivider(
+                                color: Colors.grey,
+                                thickness: 1,
+                                indent: 8,
+                                endIndent: 8,
+                                width: 20,
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.color_lens, 
+                                  color: _isMaskMode ? Colors.grey : Colors.yellow[500]
+                                ),
+                                onPressed: _isMaskMode ? null : () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return AlertDialog(
+                                        title: Text('Pick a color'),
+                                        content: BlockPicker(
+                                          pickerColor: _selectedColor,
+                                          onColorChanged: _changeColor,
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            child: Text('Done'),
+                                            onPressed: () => Navigator.pop(context),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.line && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.line_axis,
+                                    color: _isMaskMode ? Colors.grey : Colors.green[500]
+                                  ),
+                                  onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.line),
+                                  tooltip: 'Line',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.curve && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: SvgPicture.asset(
+                                    'assets/line_curve.svg', // Ensure you have the SVG file in your assets
+                                    color: _isMaskMode ? Colors.grey : Colors.purple[300], // Set the color of the SVG icon
+                                    width: 24,
+                                    height: 24,
+                                  ),
+                                  onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.curve),
+                                  tooltip: 'Curve',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.arrow && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.arrow_back,
+                                    color: _isMaskMode ? Colors.grey : Colors.white
+                                  ),
+                                  onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.arrow),
+                                  tooltip: 'Arrow',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.rectangle && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.crop_square,
+                                    color: _isMaskMode ? Colors.grey : Colors.red[200]
+                                  ),
+                                  onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.rectangle),
+                                  tooltip: 'Rectangle',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.circle && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.circle_outlined, color: _isMaskMode ? Colors.grey : Colors.orange[500]),
+                                  onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.circle),
+                                  tooltip: 'Circle',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.triangle && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  key: _triangleIconKey,
+                                  icon: Icon(Icons.change_history,
+                                    color: _isMaskMode ? Colors.grey : Colors.blue[500]
+                                  ),
+                                  onPressed: _isMaskMode ? null : () {
+                                    _selectShape(ShapeType.triangle);
+                                    _toggleTriangleToolset();
+                                  },
+                                  tooltip: 'Triangle',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedShape == ShapeType.protractor && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.architecture, // Using architecture icon for protractor
+                                    color: _isMaskMode ? Colors.grey : Colors.blue[200]
+                                  ),
+                                  onPressed: _isMaskMode ? null : () => _selectShape(ShapeType.protractor),
+                                  tooltip: 'Protractor',
+                                ),
+                              ),
+                              VerticalDivider(
+                                color: Colors.grey,
+                                thickness: 1,
+                                indent: 8,
+                                endIndent: 8,
+                                width: 20,
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _isStrokeWidthSliderVisible && !_isMaskMode
+                                    ? Colors.black.withOpacity(0.5)
+                                    : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  key: _strokeWidthIconKey,
+                                  icon: Icon(
+                                    Icons.line_weight, 
+                                    color: _isMaskMode ? Colors.grey : Colors.white
+                                  ),
+                                  onPressed: _isMaskMode ? null : () {
+                                    final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
+                                    final position = renderBox.localToGlobal(Offset.zero);
+                                    setState(() {
+                                      _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
+                                      _strokeWidthPosition = position;
+                                    });
+                                  },
+                                  tooltip: 'Adjust Stroke Width',
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _isMaskMode
+                                      ? Colors.black.withOpacity(0.5)
+                                      : Colors.transparent,
+                                  shape: BoxShape.rectangle,
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.flashlight_on,
+                                    color: _isMaskMode ? Colors.yellow : Colors.yellow,
+                                  ),
+                                  onPressed: _toggleMaskMode,
+                                  tooltip: 'Toggle Mask Mode',
+                                ),
+                              ),
+                              
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-
-            // Bottom Toolbar for Playback Controls
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: Colors.black.withOpacity(0.7),
-                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Progress bar
-                    SliderTheme(
-                      data: SliderThemeData(
-                        trackHeight: 2,
-                        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                        overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                        activeTrackColor: Colors.white,
-                        inactiveTrackColor: Colors.white.withOpacity(0.3),
-                        thumbColor: Colors.white,
-                        overlayColor: Colors.white.withOpacity(0.3),
-                      ),
-                      child: Slider(
-                        value: _controller!.value.position.inMilliseconds.toDouble(),
-                        min: 0,
-                        max: _controller!.value.duration.inMilliseconds.toDouble(),
-                        onChanged: (value) {
-                          _controller!.seekTo(Duration(milliseconds: value.toInt()));
-                        },
+              // Stroke Width Slider
+              if (_isStrokeWidthSliderVisible && _strokeWidthPosition != null)
+                Positioned(
+                  left: _strokeWidthPosition!.dx - 0, // Center on the icon
+                  bottom: MediaQuery.of(context).size.height - _strokeWidthPosition!.dy,
+                  child: Container(
+                    width: 40,
+                    height: 200,
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
                       ),
                     ),
-                    
-                    // Modified Controls row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Left side controls with added skip buttons
-                        Row(
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              _isStrokeWidthSliderVisible = false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: RotatedBox(
+                            quarterTurns: 3,
+                            child: Slider(
+                              value: _strokeWidth,
+                              min: 1.0,
+                              max: 30.0,
+                              onChanged: _changeStrokeWidth,
+                              activeColor: _selectedColor,
+                              inactiveColor: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _strokeWidth.toStringAsFixed(1),
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Triangle Toolset
+              if (_isTriangleToolsetVisible && _triangleToolsetPosition != null)
+                Positioned(
+                  left: _triangleToolsetPosition!.dx - 0, // Adjust position as needed
+                  bottom: MediaQuery.of(context).size.height - _triangleToolsetPosition!.dy + 0,
+                  child: Container(
+                    width: 50,
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.8),
+                      //borderRadius: BorderRadius.circular(8),
+                      //border: Border.all(color: Colors.blue[500]!, width: 1),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+          
+                      children: [
+                        Row( 
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            // Text(
+                            //   'Options',
+                            //   style: TextStyle(color: Colors.white, fontSize: 14),
+                            // ),
                             IconButton(
-                              icon: Icon(Icons.skip_previous, color: Colors.white),
-                              onPressed: () => _controller!.seekTo(Duration.zero),
-                              tooltip: 'Start',
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.arrow_back, color: Colors.white),
-                              onPressed: () {
-                                _rewind();
-                              },
-                              tooltip: 'Rewind',
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                              onPressed: _togglePlayPause,
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.arrow_forward, color: Colors.white),
-                              onPressed: () {
-                                _forward();
-                              },
-                              tooltip: 'Forward',
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.skip_next, color: Colors.white),
-                              onPressed: () => _controller!.seekTo(_controller!.value.duration),
-                              tooltip: 'End',
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _volume == 0 ? Icons.volume_off : Icons.volume_up,
-                                color: Colors.white,
-                              ),
-                              onPressed: _toggleMute,
-                            ),
-                            SizedBox(
-                              width: 100,
-                              child: SliderTheme(
-                                data: SliderThemeData(
-                                  trackHeight: 2,
-                                  thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                                  overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                                  activeTrackColor: Colors.white,
-                                  inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                  thumbColor: Colors.white,
-                                ),
-                                child: Slider(
-                                  value: _volume,
-                                  min: 0,
-                                  max: 1,
-                                  onChanged: _setVolume,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.speed,
-                                    color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
-                                  ),
-                                  if (!_isPlaybackSpeedEnabled)
-                                    Transform.rotate(
-                                      angle: -pi / 4,
-                                      child: Container(
-                                        width: 24,
-                                        height: 2,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              onPressed: _togglePlaybackSpeed,
-                              tooltip: 'Toggle Playback Speed',
-                            ),
-                            Container(
-                              width: 150,
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 100,
-                                    child: SliderTheme(
-                                      data: SliderThemeData(
-                                        trackHeight: 2,
-                                        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-                                        overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
-                                        activeTrackColor: Colors.white,
-                                        inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                        thumbColor: Colors.white,
-                                      ),
-                                      child: Slider(
-                                        value: _playbackSpeed,
-                                        min: _speedOptions.first,
-                                        max: _speedOptions.last,
-                                        onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '${_playbackSpeed.toStringAsFixed(2)}x',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ],
-                              ),
+                              icon: Icon(Icons.close, color: Colors.white, size: 20),
+                              onPressed: _toggleTriangleToolset,
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(),
                             ),
                           ],
                         ),
-                        
-                        // Right side controls remain the same
+                        // Divider(color: Colors.blue[500], height: 16),
                         Row(
+                          
+                          // mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            Text(
-                              '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
-                              style: TextStyle(color: Colors.white),
+                            
+                            Column(
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    _showTriangleAngles ? Icons.architecture : Icons.architecture,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showTriangleAngles = !_showTriangleAngles;
+                                    });
+                                  },
+                                  tooltip: _showTriangleAngles ? 'Hide Angles' : 'Show Angles',
+                                ),
+                                // Text(
+                                //   'Toggle Angles',
+                                //   style: TextStyle(color: Colors.white, fontSize: 12),
+                                // ),
+                              ],
                             ),
-                            SizedBox(width: 16),
-                            IconButton(
-                              icon: Icon(Icons.settings, color: Colors.white),
-                              onPressed: () {
-                                // Add settings menu functionality
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                                color: Colors.white,
-                              ),
-                              onPressed: _toggleFullScreen,
-                            ),
+                            // Add more triangle-specific tools here
+                            // For example:
+                            // Column(
+                            //   children: [
+                            //     IconButton(
+                            //       icon: Icon(
+                            //         Icons.rotate_right,
+                            //         color: Colors.blue[500],
+                            //       ),
+                            //       onPressed: () {
+                            //         // Add rotation functionality
+                            //       },
+                            //       tooltip: 'Rotate Triangle',
+                            //     ),
+                            //     Text(
+                            //       'Rotate',
+                            //       style: TextStyle(color: Colors.white, fontSize: 12),
+                            //     ),
+                            //   ],
+                            // ),
                           ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
+                ),
+
+              // Bottom Toolbar for Playback Controls
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: Colors.black.withOpacity(0.7),
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Progress bar
+                      SliderTheme(
+                        data: SliderThemeData(
+                          trackHeight: 2,
+                          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                          overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                          activeTrackColor: Colors.white,
+                          inactiveTrackColor: Colors.white.withOpacity(0.3),
+                          thumbColor: Colors.white,
+                          overlayColor: Colors.white.withOpacity(0.3),
+                        ),
+                        child: Slider(
+                          value: _controller!.value.position.inMilliseconds.toDouble(),
+                          min: 0,
+                          max: _controller!.value.duration.inMilliseconds.toDouble(),
+                          onChanged: (value) {
+                            _controller!.seekTo(Duration(milliseconds: value.toInt()));
+                          },
+                        ),
+                      ),
+                      
+                      // Modified Controls row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Left side controls with added skip buttons
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.skip_previous, color: Colors.white),
+                                onPressed: () => _controller!.seekTo(Duration.zero),
+                                tooltip: 'Start',
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.arrow_back, color: Colors.white),
+                                onPressed: () {
+                                  _rewind();
+                                },
+                                tooltip: 'Rewind',
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  _controller!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                                onPressed: _togglePlayPause,
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.arrow_forward, color: Colors.white),
+                                onPressed: () {
+                                  _forward();
+                                },
+                                tooltip: 'Forward',
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.skip_next, color: Colors.white),
+                                onPressed: () => _controller!.seekTo(_controller!.value.duration),
+                                tooltip: 'End',
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  _volume == 0 ? Icons.volume_off : Icons.volume_up,
+                                  color: Colors.white,
+                                ),
+                                onPressed: _toggleMute,
+                              ),
+                              SizedBox(
+                                width: 100,
+                                child: SliderTheme(
+                                  data: SliderThemeData(
+                                    trackHeight: 2,
+                                    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                    overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                    activeTrackColor: Colors.white,
+                                    inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                    thumbColor: Colors.white,
+                                  ),
+                                  child: Slider(
+                                    value: _volume,
+                                    min: 0,
+                                    max: 1,
+                                    onChanged: _setVolume,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.speed,
+                                      color: _isPlaybackSpeedEnabled ? Colors.white : Colors.grey,
+                                    ),
+                                    if (!_isPlaybackSpeedEnabled)
+                                      Transform.rotate(
+                                        angle: -pi / 4,
+                                        child: Container(
+                                          width: 24,
+                                          height: 2,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                onPressed: _togglePlaybackSpeed,
+                                tooltip: 'Toggle Playback Speed',
+                              ),
+                              Container(
+                                width: 150,
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 100,
+                                      child: SliderTheme(
+                                        data: SliderThemeData(
+                                          trackHeight: 2,
+                                          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+                                          overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                                          activeTrackColor: Colors.white,
+                                          inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                          thumbColor: Colors.white,
+                                        ),
+                                        child: Slider(
+                                          value: _playbackSpeed,
+                                          min: _speedOptions.first,
+                                          max: _speedOptions.last,
+                                          onChanged: _isPlaybackSpeedEnabled ? _updatePlaybackSpeed : null,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${_playbackSpeed.toStringAsFixed(2)}x',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          // Right side controls remain the same
+                          Row(
+                            children: [
+                              Text(
+                                '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              SizedBox(width: 16),
+                              IconButton(
+                                icon: Icon(Icons.settings, color: Colors.white),
+                                onPressed: () {
+                                  // Add settings menu functionality
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                  color: Colors.white,
+                                ),
+                                onPressed: _toggleFullScreen,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            if (!_controller!.value.isPlaying && _shapes.isEmpty && _currentShape == null)
-              Positioned.fill(
-                child: Center(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: _togglePlayPause,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        padding: EdgeInsets.all(24),
-                        child: Icon(
-                          Icons.play_arrow,
-                          size: 64,
-                          color: Colors.white,
+              // Play/Pause overlay
+              if (!_controller!.value.isPlaying && _shapes.isEmpty && _currentShape == null)
+                Positioned.fill(
+                  child: Center(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: _togglePlayPause,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: EdgeInsets.all(24),
+                          child: Icon(
+                            Icons.play_arrow,
+                            size: 64,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+            ],
           ],
         ),
       ),
@@ -1473,6 +2128,48 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
             )
           : null, // Hide bottom navigation when video is loaded
     );
+  }
+
+  bool _pointInTriangle(Offset p, Offset v1, Offset v2, Offset v3) {
+    double area = 0.5 * (-v2.dy * v3.dx + v1.dy * (-v2.dx + v3.dx) +
+        v1.dx * (v2.dy - v3.dy) + v2.dx * v3.dy);
+    double s = 1 / (2 * area) *
+        (v1.dy * v3.dx - v1.dx * v3.dy +
+            (v3.dy - v1.dy) * p.dx +
+            (v1.dx - v3.dx) * p.dy);
+    double t = 1 / (2 * area) *
+        (v1.dx * v2.dy - v1.dy * v2.dx +
+            (v1.dy - v2.dy) * p.dx +
+            (v2.dx - v1.dx) * p.dy);
+    return s >= 0 && t >= 0 && (1 - s - t) >= 0;
+  }
+
+  bool _isNearCorner(Offset point, Rect rect, [double threshold = 20.0]) {
+    final corners = [
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomLeft,
+      rect.bottomRight,
+    ];
+    
+    return corners.any((corner) => (point - corner).distance < threshold);
+  }
+
+  bool _isPointNearLine(Offset point, Offset start, Offset end, [double threshold = 20.0]) {
+    final length = (end - start).distance;
+    if (length == 0) return false;
+    
+    final d = ((point.dx - start.dx) * (end.dx - start.dx) +
+            (point.dy - start.dy) * (end.dy - start.dy)) /
+        (length * length);
+    
+    if (d < 0 || d > 1) return false;
+    
+    final projection = Offset(
+      start.dx + d * (end.dx - start.dx),
+      start.dy + d * (end.dy - start.dy),
+    );
+    return (point - projection).distance < threshold;
   }
 }
 
@@ -1604,8 +2301,8 @@ class Shape {
     if (points.length < 2) return false;
     final p1 = points[0];
     final p2 = points.last;
-    final p3 = Offset(2 * p1.dx - p2.dx, p2.dy);
-    
+                      final p3 = Offset(2 * p1.dx - p2.dx, p2.dy);
+                      
     return _pointInTriangle(point, p1, p2, p3);
   }
 
@@ -1647,14 +2344,41 @@ class Shape {
       points[i] = points[i] + delta;
     }
   }
+
+  // Add a method to calculate angles for triangle
+  List<double> calculateTriangleAngles() {
+    if (shapeType != ShapeType.triangle || points.length < 2) return [];
+    
+    final p1 = points[0];  // apex
+    final p2 = points.last;  // base right point
+    final p3 = Offset(2 * p1.dx - p2.dx, p2.dy);  // base left point
+    
+    // Calculate vectors
+    final a = (p2 - p1).distance;  // side length from apex to right
+    final b = (p3 - p1).distance;  // side length from apex to left
+    final c = (p3 - p2).distance;  // base length
+    
+    // Calculate angles using law of cosines
+    final angleA = acos((b * b + c * c - a * a) / (2 * b * c)) * 180 / pi;
+    final angleB = acos((a * a + c * c - b * b) / (2 * a * c)) * 180 / pi;
+    final angleC = 180 - angleA - angleB;  // angles in triangle sum to 180°
+    
+    return [angleA, angleB, angleC];
+  }
 }
 
 class DrawingPainter extends CustomPainter {
   final List<Shape> shapes;
   final Shape? currentShape;
   final double Function(Offset, Offset, Offset)? calculateAngle;
+  final bool showTriangleAngles; // Add this property
 
-  DrawingPainter(this.shapes, this.currentShape, this.calculateAngle);
+  DrawingPainter(
+    this.shapes, 
+    this.currentShape, 
+    this.calculateAngle, 
+    {this.showTriangleAngles = true} // Default to true for backward compatibility
+  );
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1799,13 +2523,84 @@ class DrawingPainter extends CustomPainter {
 
   void _drawTriangle(Canvas canvas, List<Offset> points, Paint paint) {
     if (points.length >= 2) {
-      final path = Path();
-      path.moveTo(points[0].dx, points[0].dy);
-      path.lineTo(points.last.dx, points.last.dy);
-      path.lineTo(2 * points[0].dx - points.last.dx, points.last.dy);
-      path.close();
+      final p1 = points[0];  // apex
+      final p2 = points.last;  // base right point
+      final p3 = Offset(2 * p1.dx - p2.dx, p2.dy);  // base left point
+      
+      // Draw the triangle
+      final path = Path()
+        ..moveTo(p1.dx, p1.dy)
+        ..lineTo(p2.dx, p2.dy)
+        ..lineTo(p3.dx, p3.dy)
+        ..close();
       canvas.drawPath(path, paint);
+      
+      // Only draw angles if showTriangleAngles is true
+      if (showTriangleAngles) {
+        final angles = Shape(
+          points: points,
+          color: paint.color,
+          strokeWidth: paint.strokeWidth,
+          shapeType: ShapeType.triangle
+        ).calculateTriangleAngles();
+        
+        if (angles.length == 3) {
+          final textStyle = TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          );
+          
+          _drawAngleText(canvas, p1, angles[0], textStyle, paint.color);
+          _drawAngleText(canvas, p2, angles[1], textStyle, paint.color);
+          _drawAngleText(canvas, p3, angles[2], textStyle, paint.color);
+        }
+      }
     }
+  }
+
+  void _drawAngleText(Canvas canvas, Offset position, double angle, TextStyle style, Color shapeColor) {
+    final text = '${angle.toStringAsFixed(1)}°';
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    );
+    
+    textPainter.layout();
+    
+    // Draw background for better visibility
+    final bgRect = Rect.fromCenter(
+      center: Offset(
+        position.dx,
+        position.dy,
+      ),
+      width: textPainter.width + 16,
+      height: textPainter.height + 8,
+    );
+    
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(bgRect, Radius.circular(4)),
+      Paint()
+        ..color = Colors.black.withOpacity(0.7)
+        ..style = PaintingStyle.fill,
+    );
+    
+    // Draw border in shape color
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(bgRect, Radius.circular(4)),
+      Paint()
+        ..color = shapeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    
+    textPainter.paint(
+      canvas,
+      Offset(
+        position.dx - textPainter.width / 2,
+        position.dy - textPainter.height / 2,
+      ),
+    );
   }
 
   void _drawCurve(Canvas canvas, List<Offset> points, Paint paint) {
