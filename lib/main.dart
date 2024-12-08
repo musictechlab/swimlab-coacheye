@@ -89,6 +89,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   double _playbackSpeed = 1.0;
   final List<double> _speedOptions = [0.25, 0.5, 1.0, 1.25, 1.5, 1.75, 2.0];
   bool _isPlaybackSpeedEnabled = true;  // Add this property
+  final GlobalKey _strokeWidthIconKey = GlobalKey();
+  Offset? _strokeWidthPosition;
 
   @override
   void initState() {
@@ -1033,14 +1035,26 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                                     tooltip: 'Toggle Mask Mode',
                                   ),
                                 ),
-                                IconButton(
-                                  icon: Icon(Icons.line_weight, color: Colors.yellow[500]),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
-                                    });
-                                  },
-                                  tooltip: 'Adjust Stroke Width',
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: _selectedShape == ShapeType.line
+                                      ? Colors.black.withOpacity(0.5)
+                                      : Colors.transparent,
+                                    shape: BoxShape.rectangle,
+                                  ),
+                                  child: IconButton(
+                                    key: _strokeWidthIconKey,
+                                    icon: Icon(Icons.line_weight, color: Colors.yellow[500]),
+                                    onPressed: () {
+                                      final RenderBox renderBox = _strokeWidthIconKey.currentContext?.findRenderObject() as RenderBox;
+                                      final position = renderBox.localToGlobal(Offset.zero);
+                                      setState(() {
+                                        _isStrokeWidthSliderVisible = !_isStrokeWidthSliderVisible;
+                                        _strokeWidthPosition = position;
+                                      });
+                                    },
+                                    tooltip: 'Adjust Stroke Width',
+                                  ),
                                 ),
                               
                               ],
@@ -1053,38 +1067,50 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 ),
 
                 // Stroke Width Slider
-                if (_isStrokeWidthSliderVisible)
+                if (_isStrokeWidthSliderVisible && _strokeWidthPosition != null)
                   Positioned(
-                    top: 100, // Position it below the color picker
-                    right: 50, // Place beside the right sidebar
+                    left: _strokeWidthPosition!.dx - 0, // Center on the icon
+                    bottom: MediaQuery.of(context).size.height - _strokeWidthPosition!.dy,
                     child: Container(
-                      width: 300,
-                      height: 40,
-                      color: Colors.black.withOpacity(0.5),
-                      child: Row(
+                      width: 40,
+                      height: 200,
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: Slider(
-                              value: _strokeWidth,
-                              min: 1.0,
-                              max: 30.0,
-                              onChanged: _changeStrokeWidth,
-                              activeColor: _selectedColor,
-                              inactiveColor: Colors.grey,
-                            ),
-                          ),
-                          Text(
-                            _strokeWidth.toStringAsFixed(1),
-                            style: TextStyle(color: Colors.white),
-                          ),
                           IconButton(
-                            icon: Icon(Icons.close, color: Colors.white),
+                            icon: Icon(Icons.close, color: Colors.white, size: 20),
                             onPressed: () {
                               setState(() {
                                 _isStrokeWidthSliderVisible = false;
                               });
                             },
                           ),
+                          Expanded(
+                            child: RotatedBox(
+                              quarterTurns: 3,
+                              child: Slider(
+                                value: _strokeWidth,
+                                min: 1.0,
+                                max: 30.0,
+                                onChanged: _changeStrokeWidth,
+                                activeColor: _selectedColor,
+                                inactiveColor: Colors.grey,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _strokeWidth.toStringAsFixed(1),
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          SizedBox(height: 8),
                         ],
                       ),
                     ),
