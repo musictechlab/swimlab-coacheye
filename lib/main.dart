@@ -91,6 +91,8 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
   bool _isPlaybackSpeedEnabled = true;  // Add this property
   final GlobalKey _strokeWidthIconKey = GlobalKey();
   Offset? _strokeWidthPosition;
+  bool _isResizingProtractor = false;
+  Shape? _selectedProtractor;
 
   @override
   void initState() {
@@ -647,6 +649,48 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                 // Drawing/Annotation Overlay
                 GestureDetector(
                   onPanStart: (details) {
+                    if (_selectedShape == ShapeType.protractor) {
+                      final position = details.localPosition;
+                      // Check if we're clicking on an existing protractor
+                      for (var shape in _shapes) {
+                        if (shape.shapeType == ShapeType.protractor) {
+                          final center = shape.points.first;
+                          final radius = (shape.points.first - shape.points.last).distance;
+                          final distanceFromCenter = (position - center).distance;
+                          
+                          // Check if we're near the edge (for resizing)
+                          if ((distanceFromCenter - radius).abs() < 20) {
+                            setState(() {
+                              _isResizingProtractor = true;
+                              _selectedProtractor = shape;
+                              _currentShape = shape;
+                            });
+                            return;
+                          }
+                          
+                          // Check if we're inside the protractor (for moving)
+                          if (distanceFromCenter < radius) {
+                            setState(() {
+                              _isMovingShape = true;
+                              _movingShape = shape;
+                              _lastPosition = position;
+                            });
+                            return;
+                          }
+                        }
+                      }
+                      
+                      // Create new protractor if not interacting with existing one
+                      setState(() {
+                        _currentShape = Shape(
+                          points: [position, position],
+                          color: _selectedColor,
+                          strokeWidth: _strokeWidth,
+                          shapeType: ShapeType.protractor,
+                        );
+                      });
+                      return;
+                    }
                     if (_isMaskMode) {
                       final position = details.localPosition;
                       // If we already have a mask, check if we're clicking near its edge
@@ -721,6 +765,29 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     });
                   },
                   onPanUpdate: (details) {
+                    if (_selectedShape == ShapeType.protractor) {
+                      final position = details.localPosition;
+                      if (_isResizingProtractor && _selectedProtractor != null) {
+                        setState(() {
+                          _selectedProtractor!.points[1] = position; // Update radius
+                        });
+                        return;
+                      }
+                      if (_isMovingShape && _movingShape != null && _lastPosition != null) {
+                        setState(() {
+                          final delta = position - _lastPosition!;
+                          _movingShape!.move(delta);
+                          _lastPosition = position;
+                        });
+                        return;
+                      }
+                      if (_currentShape != null) {
+                        setState(() {
+                          _currentShape!.points[1] = position;
+                        });
+                      }
+                      return;
+                    }
                     if (_isMaskMode) {
                       final position = details.localPosition;
                       if (_isResizingMask && _currentShape != null) {
@@ -766,6 +833,32 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
                     }
                   },
                   onPanEnd: (details) {
+                    if (_selectedShape == ShapeType.protractor) {
+                      if (_isResizingProtractor) {
+                        setState(() {
+                          _isResizingProtractor = false;
+                          _selectedProtractor = null;
+                          _currentShape = null;
+                        });
+                        return;
+                      }
+                      if (_isMovingShape) {
+                        setState(() {
+                          _isMovingShape = false;
+                          _movingShape = null;
+                          _lastPosition = null;
+                        });
+                        return;
+                      }
+                      if (_currentShape != null) {
+                        setState(() {
+                          _shapes.add(_currentShape!);
+                          _currentShape = null;
+                          _undoStack.clear();
+                        });
+                      }
+                      return;
+                    }
                     if (_isMaskMode) {
                       if (_isResizingMask) {
                         setState(() {
